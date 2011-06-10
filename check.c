@@ -6,6 +6,7 @@
 
 
 #include "quadtree.h"
+#include "quadtree_private.h"
 
 
 
@@ -34,7 +35,7 @@ _Bool in_region(region *r, FLOAT coords[2]) {
 
 }
 
-void populate(quadtree *qt, region *regions, short int nregions, idt n) {
+void populate(QuadTree *qt, region *regions, short int nregions, idt n) {
   idt i;
   short int j;
   FLOAT coords[2];
@@ -64,16 +65,22 @@ void populate(quadtree *qt, region *regions, short int nregions, idt n) {
 
 int main(int argc, char **argv) {
 
-  FLOAT ne[2] = { 1, 1 };
-  FLOAT sw[2] = { 0, 0 };
+  Quadrant quadrant;
 
-  quadtree *qt = create_quadtree(ne, sw, 10);
+  quadrant.ne[X] = 1;
+  quadrant.ne[Y] = 1;
+  quadrant.sw[X] = 0;
+  quadrant.sw[Y] = 0;
+
+  QuadTree *qt = create_quadtree(&quadrant, 10);
 
   short int nregions = 100;
 
   region *regions = malloc(sizeof(region) * nregions);
 
   populate(qt, regions, nregions, 99999);
+
+  finalise(qt);
 
   return 0;
 }

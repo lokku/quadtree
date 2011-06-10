@@ -13,163 +13,15 @@
 
 
 #include "quadtree.h"
-
-
-
-
-typedef void Node;
-
-
-struct _item;
-struct _inner;
-struct _leaf;
-struct _TransNode;
-
-typedef struct _item      item;
-typedef struct _TransNode TransNode;
-typedef struct _inner     inner;
-typedef struct _leaf      leaf;
-
-
-
-
-
-struct _item {
-
-  void *value;
-  FLOAT coords[2];
-
-} __packed__;
-
-
-
-
-struct _inner {
-  Node *quadrants[4];
-};
-
-struct _leaf {
-  void **items;
-  unsigned long int n;
-};
-
-/* A transient node: soon it will be either an inner or leaf node */
-struct _TransNode {
-  _Bool is_inner;
-  union {
-    TransNode *quadrants[4];
-    struct {
-      item **items;
-      unsigned int n;
-      unsigned int size;
-
-      /* Notes:
-       * size:
-           if non-0, indicates that this bucket is too big, and that
-           the reason for this is that it contains identically-coordinated
-           nodes that cannot be split into other buckets. The actual
-           value indicates the size (in number of items, not bytes) of
-           the memory malloc()ed for the bucket.
-      */
-    } leaf;
-  };  /* "unnamed struct/union": http://gcc.gnu.org/onlinedocs/gcc/Unnamed-Fields.html */
-};
-
-
-
-
-struct QuadTree {
-
-  Node *root;
-
-  Quadrant region;
-
-  unsigned long int size;
-
-  void *mem;
-
-  /* divider: memory addresses to within *mem that are less than
-              $divider are considered inner nodes, otherwise they're
-              considered leaf nodes. */
-  void *divider;
-
-  int maxdepth;
-  BUCKETSIZE maxfill;
-
-  void *stack;
-
-};
-
-
-
-
-
-inline void _ensure_child_quad(QuadTree *qt, TransNode *node, quadindex quad, item *item);
-inline void _ensure_bucket_size(QuadTree *qt, TransNode *node, const Quadrant *quadrant);
-inline int _FLOATcmp(FLOAT a, FLOAT b);
-inline int _count_distinct_nodes(TransNode *node);
-
-void _insert(QuadTree *qt, TransNode *node, item *item, Quadrant *quadrant);
-int  _itemcmp(item *a, item *b);
-void _split_node(QuadTree *qt, TransNode *node, const Quadrant *quadrant);
-void _init_root(QuadTree *qt);
-void _finalise(QuadTree *qt);
+#include "quadtree_private.h"
 
 
 
 
 
 
-/*
- * Coordinates:
- *
- *
- * N: 0X
- * S: 1X
- * E: X1
- * W: X0
- *
- * +---------+
- * | 00 | 01 |
- * +----+----+
- * | 10 | 11 |
- * +----+----+
- *
- *
- ***************/
 
 
-
-
-#define NORTH(x) ((x) = (x) & NE)
-#define SOUTH(x) ((x) = (x) | SW)
-#define  EAST(x) ((x) = (x) | NE)
-#define  WEST(x) ((x) = (x) & SW)
-
-
-
-
-/* I have a phobia of floating point arithmatic when conversion to
- * exact integers is required. Could use stdlib's pow() function,
- * but can we be bothered to _prove_ there will never be errors due
- * to conversion from integers to floats, and then back again?
- * For the same reason, I'm using divll instead of '/'.
- *
- * pow4(x): compute 4^x
- */
-
-inline u_64int_t pow4(u_64int_t x) {
-  return (1<<x) * (1<<x);
-}
-
-inline u_64int_t child(int level, int offset) {
-  u_64int_t nodes_above, nodes_left;
-
-  nodes_above = divll(pow4(level+1)-1, 3).quot;
-  nodes_left  = 4*offset;
-
-  return nodes_above + nodes_left - 1;
-}
 
 
 
@@ -204,12 +56,32 @@ inline void _nullify_quadrants(TransNode *quadrants[4]) {
 inline void *_malloc(size_t size) {
   void *ptr = malloc(size);
   if (ptr == NULL) {
-    char *str;
-    asprintf(&str, "malloc: couldn't allocate %ld bytes", size);
-    perror(str);
+    fprintf(stderr, "malloc: couldn't allocate %ld bytes", size);
+    perror("malloc");
   }
   return ptr;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -221,11 +93,14 @@ QuadTree *create_quadtree(Quadrant *region, BUCKETSIZE maxfill) {
 
   qt->size = 0;
 
-  qt->mem     = NULL;
-  qt->divider = NULL;
+  qt->mem.as_void = NULL;
+  qt->divider     = NULL;
 
   qt->maxdepth = 0;
   qt->maxfill  = maxfill;
+
+  qt->ninners  = 1;
+  qt->nleafs   = 0;
 
   _init_root(qt);
 
@@ -235,24 +110,27 @@ QuadTree *create_quadtree(Quadrant *region, BUCKETSIZE maxfill) {
 
 void _init_root(QuadTree *qt) {
   TransNode *root = _malloc(sizeof(TransNode));
+
   root->is_inner = 1;
 
   qt->root = (Node *)root;
+
+  assert(qt->ninners == 1);
 }
 
 
 
-void insert(QuadTree *qt, ITEM *value, FLOAT coords[2]) {
+void insert(QuadTree *qt, ITEM value, FLOAT coords[2]) {
 
-  if (qt->mem != NULL) {
-    printf("error: attempt to insert into the quadtree after finalisation\n");
+  if (qt->mem.as_void != NULL) {
+    fprintf(stderr, "error: attempt to insert into the quadtree after finalisation\n");
     exit(1);
   }
 
+  qt->size++;
 
 
-
-  item *item = _malloc(sizeof(item));
+  Item *item = _malloc(sizeof(Item));
 
   item->value  = value;
   item->coords[0] = coords[0];
@@ -267,9 +145,9 @@ void insert(QuadTree *qt, ITEM *value, FLOAT coords[2]) {
 
 /* Note: *quadrant _is_ modified, but after _insert returns, it is no longer needed
  * (i.e., it's safe to use an auto variable */
-void _insert(QuadTree *qt, TransNode *node, item *item, Quadrant *q) {
+void _insert(QuadTree *qt, TransNode *node, Item *item, Quadrant *q) {
 
- INSERT:
+ RESTART:
 
   if (node->is_inner) {
 
@@ -302,7 +180,7 @@ void _insert(QuadTree *qt, TransNode *node, item *item, Quadrant *q) {
     _ensure_bucket_size(qt, node, q);
 
     if (node->is_inner)
-      goto INSERT;
+      goto RESTART;
 
     node->leaf.items[node->leaf.n++] = item;
   }
@@ -311,7 +189,7 @@ void _insert(QuadTree *qt, TransNode *node, item *item, Quadrant *q) {
 
 
 
-int _itemcmp(item *a, item *b) {
+int _itemcmp(Item *a, Item *b) {
 
   /* The C99 standard defines '||' so that it returns 0 or 1, so we
      can't use the more natural expression
@@ -345,7 +223,7 @@ inline int _count_distinct_nodes(TransNode *node) {
      logic until there's a motivation to simplify it. */
 
 
-  qsort(*node->leaf.items, node->leaf.n, sizeof(item), (__compar_fn_t)_itemcmp);
+  qsort(*node->leaf.items, node->leaf.n, sizeof(Item), (__compar_fn_t)_itemcmp);
 
   int r = 0;
 
@@ -360,12 +238,13 @@ inline int _count_distinct_nodes(TransNode *node) {
 
 inline void _init_leaf_node(QuadTree *qt, TransNode *node) {
   node->is_inner = 0;
-  node->leaf.items = _malloc(sizeof(item) * qt->maxfill);
+  node->leaf.items = _malloc(sizeof(Item) * qt->maxfill);
   node->leaf.n = 0;
   node->leaf.size = 0;
+  qt->nleafs++;
 }
 
-inline void _ensure_child_quad(QuadTree *qt, TransNode *node, quadindex quad, item *item) {
+inline void _ensure_child_quad(QuadTree *qt, TransNode *node, quadindex quad, Item *item) {
 
   assert(node->is_inner);
 
@@ -402,19 +281,25 @@ inline void _ensure_bucket_size(QuadTree *qt, TransNode *node, const Quadrant *q
 /* Maximum recursion depth: 64 assuming double-type coordinates */
 void _split_node(QuadTree *qt, TransNode *node, const Quadrant *quadrant) {
 
+  assert(!node->is_inner);
+
   int distinct = _count_distinct_nodes(node);
 
   if (distinct == 1) {
 
     /* Nothing we can do to further split the nodes */
     node->leaf.size *= 2;
-    node->leaf.items = realloc(node->leaf.items, node->leaf.size*sizeof(item));
+    node->leaf.items = realloc(node->leaf.items, node->leaf.size*sizeof(Item));
 
   } else {
 
     TransNode cpy = *node;
 
     node->is_inner = 1;
+
+    qt->ninners++;
+    qt->nleafs--;
+
     _nullify_quadrants(node->quadrants);
 
     int i;
@@ -432,10 +317,91 @@ void _split_node(QuadTree *qt, TransNode *node, const Quadrant *quadrant) {
 
 
 
-
-
 void finalise(QuadTree *qt) {
 
+  if (qt->mem.as_void != NULL) {
+    fprintf(stderr, "error: quadtree already finalised");
+    exit(1);
+  }
+
+  FinaliseState st;
+
+  u_int64_t bytes = sizeof(Inner)*qt->ninners + sizeof(Leaf)*qt->nleafs + sizeof(Item)*qt->size;
+
+  qt->mem.as_void = _malloc(bytes);
+
+  qt->divider       = qt->mem.as_void + qt->ninners*sizeof(Inner);
+
+  qt->items.as_void = qt->divider + sizeof(Leaf)*qt->nleafs;
+
+  st.quadtree = qt;
+  st.ninners  = 0;
+  st.nleafs   = 0;
+  st.nextleaf.as_void = qt->divider;
+  st.cur              = qt->root;
+
+  _finalise(&st);
+
+}
+
+void _finalise_inner(FinaliseState *st) {
+
+  int i;
+  TransNode *cur = st->cur;
+  Inner *inner = st->quadtree->mem.as_inner + st->ninners++;
+
+  for (i=0; i<4; i++) {
+    st->cur = cur->quadrants[i];
+
+    if (st->cur == NULL) {
+      inner->quadrants[i] = 0;
+    } else {
+      inner->quadrants[i] = st->ninners;
+      _finalise(st);
+    }
+  }
+
+  free(cur);
+
+#ifndef NDEBUG
+  st->cur = NULL;
+#endif
+}
+
+void _finalise_leaf(FinaliseState *st) {
+
+  int i;
+  TransNode *cur = st->cur;
+
+  Leaf *leaf = st->nextleaf.as_leaf;
+
+  leaf->n = cur->leaf.n;
+
+  for (i=0; i<leaf->n; i++) {
+    leaf->items[i] = *cur->leaf.items[i];
+  }
+
+  st->nextleaf.as_void += sizeof(Leaf) + sizeof(Item)*leaf->n;
+  st->nleafs++;
+
+  free(cur->leaf.items);
+  free(cur);
+
+#ifndef NDEBUG
+  st->cur = NULL;
+#endif
+}
 
 
+
+
+inline void _finalise(FinaliseState *st) {
+
+  assert(st->cur != NULL);
+
+  if (st->cur->is_inner) {
+    _finalise_inner(st);
+  } else {
+    _finalise_leaf(st);
+  }
 }
