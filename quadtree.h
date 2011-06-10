@@ -1,7 +1,7 @@
 
 
 
-typedef struct quadtree quadtree;
+typedef struct QuadTree QuadTree;
 
 typedef void          *ITEM;
 typedef double         FLOAT;
@@ -12,11 +12,18 @@ typedef unsigned int   BUCKETSIZE;
 
 
 
-quadtree *create_quadtree(FLOAT ne[2], FLOAT sw[2], BUCKETSIZE maxfill);
+typedef struct {
+  FLOAT ne[2];
+  FLOAT sw[2];
+} Quadrant;
 
-void insert(quadtree *qt, ITEM *item, FLOAT coords[2]);
 
 
+
+
+QuadTree *create_QuadTree(Quadrant *region, BUCKETSIZE maxfill);
+
+void insert(QuadTree *qt, ITEM *item, FLOAT coords[2]);
 
 
 
@@ -27,5 +34,5 @@ typedef enum {
 
 typedef enum {
   NW, NE, SW, SE
-} quadrant;
+} quadindex;
 

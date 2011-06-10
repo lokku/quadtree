@@ -17,16 +17,16 @@
 
 
 
-typedef void node;
+typedef void Node;
 
 
 struct _item;
 struct _inner;
 struct _leaf;
-struct _transnode;
+struct _TransNode;
 
 typedef struct _item      item;
-typedef struct _transnode transnode;
+typedef struct _TransNode TransNode;
 typedef struct _inner     inner;
 typedef struct _leaf      leaf;
 
@@ -45,7 +45,7 @@ struct _item {
 
 
 struct _inner {
-  node *quadrants[4];
+  Node *quadrants[4];
 };
 
 struct _leaf {
@@ -54,10 +54,10 @@ struct _leaf {
 };
 
 /* A transient node: soon it will be either an inner or leaf node */
-struct _transnode {
+struct _TransNode {
   _Bool is_inner;
   union {
-    transnode *quadrants[4];
+    TransNode *quadrants[4];
     struct {
       item **items;
       unsigned int n;
@@ -77,12 +77,12 @@ struct _transnode {
 
 
 
-struct quadtree {
 
-  node *root;
+struct QuadTree {
 
-  FLOAT ne[2];
-  FLOAT sw[2];
+  Node *root;
+
+  Quadrant region;
 
   unsigned long int size;
 
@@ -104,19 +104,16 @@ struct quadtree {
 
 
 
-
-
-
-inline void _ensure_child_quad(quadtree *qt, transnode *node, quadrant quad, item *item, FLOAT *ne, FLOAT *sw);
-inline void _ensure_bucket_size(quadtree *qt, transnode *node, const FLOAT *ne, const FLOAT *sw);
+inline void _ensure_child_quad(QuadTree *qt, TransNode *node, quadindex quad, item *item);
+inline void _ensure_bucket_size(QuadTree *qt, TransNode *node, const Quadrant *quadrant);
 inline int _FLOATcmp(FLOAT a, FLOAT b);
-inline int _count_distinct_nodes(transnode *node);
+inline int _count_distinct_nodes(TransNode *node);
 
-void _insert(quadtree *qt, transnode *node, item *item, FLOAT *ne, FLOAT *sw);
+void _insert(QuadTree *qt, TransNode *node, item *item, Quadrant *quadrant);
 int  _itemcmp(item *a, item *b);
-void _split_node(quadtree *qt, transnode *node, const FLOAT *ne, const FLOAT *sw);
-void _init_root(quadtree *qt);
-void _finalise(quadtree *qt);
+void _split_node(QuadTree *qt, TransNode *node, const Quadrant *quadrant);
+void _init_root(QuadTree *qt);
+void _finalise(QuadTree *qt);
 
 
 
@@ -150,12 +147,41 @@ void _finalise(quadtree *qt);
 #define  WEST(x) ((x) = (x) & SW)
 
 
+
+
+/* I have a phobia of floating point arithmatic when conversion to
+ * exact integers is required. Could use stdlib's pow() function,
+ * but can we be bothered to _prove_ there will never be errors due
+ * to conversion from integers to floats, and then back again?
+ * For the same reason, I'm using divll instead of '/'.
+ *
+ * pow4(x): compute 4^x
+ */
+
+inline u_64int_t pow4(u_64int_t x) {
+  return (1<<x) * (1<<x);
+}
+
+inline u_64int_t child(int level, int offset) {
+  u_64int_t nodes_above, nodes_left;
+
+  nodes_above = divll(pow4(level+1)-1, 3).quot;
+  nodes_left  = 4*offset;
+
+  return nodes_above + nodes_left - 1;
+}
+
+
+
+
+
+
 /* Expect this to be faster than a memcpy */
-inline void _nullify_quadrants(transnode *quadrants[4]) {
-  quadrants[NW] = (transnode *)NULL;
-  quadrants[NE] = (transnode *)NULL;
-  quadrants[SW] = (transnode *)NULL;
-  quadrants[SE] = (transnode *)NULL;
+inline void _nullify_quadrants(TransNode *quadrants[4]) {
+  quadrants[NW] = (TransNode *)NULL;
+  quadrants[NE] = (TransNode *)NULL;
+  quadrants[SW] = (TransNode *)NULL;
+  quadrants[SE] = (TransNode *)NULL;
 }
 
 
@@ -187,14 +213,11 @@ inline void *_malloc(size_t size) {
 
 
 
-quadtree *create_quadtree(FLOAT ne[2], FLOAT sw[2], BUCKETSIZE maxfill) {
+QuadTree *create_quadtree(Quadrant *region, BUCKETSIZE maxfill) {
 
-  quadtree *qt = (quadtree *)_malloc(sizeof(quadtree));
+  QuadTree *qt = (QuadTree *)_malloc(sizeof(QuadTree));
 
-  qt->ne[X] = ne[X];
-  qt->ne[Y] = ne[Y];
-  qt->sw[X] = sw[X];
-  qt->sw[Y] = sw[Y];
+  qt->region = *region;
 
   qt->size = 0;
 
@@ -210,16 +233,16 @@ quadtree *create_quadtree(FLOAT ne[2], FLOAT sw[2], BUCKETSIZE maxfill) {
 }
 
 
-void _init_root(quadtree *qt) {
-  transnode *root = _malloc(sizeof(transnode));
+void _init_root(QuadTree *qt) {
+  TransNode *root = _malloc(sizeof(TransNode));
   root->is_inner = 1;
 
-  qt->root = (node *)root;
+  qt->root = (Node *)root;
 }
 
 
 
-void insert(quadtree *qt, ITEM *value, FLOAT coords[2]) {
+void insert(QuadTree *qt, ITEM *value, FLOAT coords[2]) {
 
   if (qt->mem != NULL) {
     printf("error: attempt to insert into the quadtree after finalisation\n");
@@ -235,47 +258,48 @@ void insert(quadtree *qt, ITEM *value, FLOAT coords[2]) {
   item->coords[0] = coords[0];
   item->coords[1] = coords[1];
 
-  FLOAT ne[2] = { qt->ne[0], qt->ne[1] };
-  FLOAT sw[2] = { qt->sw[0], qt->sw[1] };
+  Quadrant quadrant = qt->region;
 
-  _insert(qt, (transnode *)qt->root, item, ne, sw);
+  _insert(qt, (TransNode *)qt->root, item, &quadrant);
 
 }
 
 
-void _insert(quadtree *qt, transnode *node, item *item, FLOAT *ne, FLOAT *sw) {
+/* Note: *quadrant _is_ modified, but after _insert returns, it is no longer needed
+ * (i.e., it's safe to use an auto variable */
+void _insert(QuadTree *qt, TransNode *node, item *item, Quadrant *q) {
 
  INSERT:
 
   if (node->is_inner) {
 
-    FLOAT div_x = (ne[X] - sw[X]) / 2;
-    FLOAT div_y = (ne[Y] - sw[Y]) / 2;
+    FLOAT div_x = (q->ne[X] - q->sw[X]) / 2;
+    FLOAT div_y = (q->ne[Y] - q->sw[Y]) / 2;
 
-    quadrant quad = 0;
+    quadindex quad = 0;
 
     if (item->coords[X] >= div_x) {
       EAST(quad);
-      sw[0] = div_x;
+      q->sw[0] = div_x;
     } else {
       WEST(quad);
-      ne[0] = div_x;
+      q->ne[0] = div_x;
     }
 
     if (item->coords[Y] >= div_y) {
       NORTH(quad);
-      sw[1] = div_y;
+      q->sw[1] = div_y;
     } else {
       SOUTH(quad);
-      ne[1] = div_y;
+      q->ne[1] = div_y;
     }
 
-    _ensure_child_quad(qt, node, quad, item, ne, sw);
-    _insert(qt, node->quadrants[quad], item, ne, sw);
+    _ensure_child_quad(qt, node, quad, item);
+    _insert(qt, node->quadrants[quad], item, q);
 
   } else {  /* $node is a leaf */
 
-    _ensure_bucket_size(qt, node, ne, sw);
+    _ensure_bucket_size(qt, node, q);
 
     if (node->is_inner)
       goto INSERT;
@@ -315,7 +339,7 @@ inline int _FLOATcmp(FLOAT a, FLOAT b) {
 }
 
 
-inline int _count_distinct_nodes(transnode *node) {
+inline int _count_distinct_nodes(TransNode *node) {
   /* This is pretty inefficient, since we only want to find if
      the number of distinct nodes is >1. However, I'm keeping this
      logic until there's a motivation to simplify it. */
@@ -334,19 +358,19 @@ inline int _count_distinct_nodes(transnode *node) {
 }
 
 
-inline void _init_leaf_node(quadtree *qt, transnode *node) {
+inline void _init_leaf_node(QuadTree *qt, TransNode *node) {
   node->is_inner = 0;
   node->leaf.items = _malloc(sizeof(item) * qt->maxfill);
   node->leaf.n = 0;
   node->leaf.size = 0;
 }
 
-inline void _ensure_child_quad(quadtree *qt, transnode *node, quadrant quad, item *item, FLOAT *ne, FLOAT *sw) {
+inline void _ensure_child_quad(QuadTree *qt, TransNode *node, quadindex quad, item *item) {
 
   assert(node->is_inner);
 
   if (node->quadrants[quad] == NULL) {
-    node->quadrants[quad] = (transnode *)_malloc(sizeof(transnode));
+    node->quadrants[quad] = (TransNode *)_malloc(sizeof(TransNode));
     _init_leaf_node(qt, node->quadrants[quad]);
   }
 }
@@ -356,12 +380,12 @@ inline void _ensure_child_quad(quadtree *qt, transnode *node, quadrant quad, ite
  * it may be a leaf node when the function terminates (i.e., the node's
  * type may change as a side effect of this function).
  */
-inline void _ensure_bucket_size(quadtree *qt, transnode *node, const FLOAT *ne, const FLOAT *sw) {
+inline void _ensure_bucket_size(QuadTree *qt, TransNode *node, const Quadrant *quadrant) {
 
   assert(!node->is_inner);
 
   if ( (node->leaf.n+1 >= qt->maxfill) && (node->leaf.n+1 >= node->leaf.size)) {
-    _split_node(qt, node, ne, sw);
+    _split_node(qt, node, quadrant);
   }
 
 #ifndef NDEBUG
@@ -376,7 +400,7 @@ inline void _ensure_bucket_size(quadtree *qt, transnode *node, const FLOAT *ne, 
 
 
 /* Maximum recursion depth: 64 assuming double-type coordinates */
-void _split_node(quadtree *qt, transnode *node, const FLOAT *ne, const FLOAT *sw) {
+void _split_node(QuadTree *qt, TransNode *node, const Quadrant *quadrant) {
 
   int distinct = _count_distinct_nodes(node);
 
@@ -388,18 +412,17 @@ void _split_node(quadtree *qt, transnode *node, const FLOAT *ne, const FLOAT *sw
 
   } else {
 
-    transnode cpy = *node;
+    TransNode cpy = *node;
 
     node->is_inner = 1;
     _nullify_quadrants(node->quadrants);
 
     int i;
 
-    FLOAT ne_[2] = { ne[0], ne[1] };
-    FLOAT sw_[2] = { sw[0], sw[1] };
+    Quadrant quadrant_ = *quadrant;
 
     for (i=0; i<cpy.leaf.n; i++) {
-      _insert(qt, node, cpy.leaf.items[i], ne_, sw_);
+      _insert(qt, node, cpy.leaf.items[i], &quadrant_);
     }
   }
 }
@@ -411,7 +434,7 @@ void _split_node(quadtree *qt, transnode *node, const FLOAT *ne, const FLOAT *sw
 
 
 
-void finalise(quadtree *qt) {
+void finalise(QuadTree *qt) {
 
 
 
