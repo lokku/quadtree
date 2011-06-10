@@ -29,7 +29,7 @@
 
 
 /* Expect this to be faster than a memcpy */
-inline void _nullify_quadrants(TransNode *quadrants[4]) {
+inline void _nullify_quadrants(TransNode **quadrants) {
   quadrants[NW] = (TransNode *)NULL;
   quadrants[NE] = (TransNode *)NULL;
   quadrants[SW] = (TransNode *)NULL;
@@ -79,7 +79,11 @@ inline void *_malloc(size_t size) {
 
 
 
+_Bool in_quadrant(Item *i, Quadrant *q) {
+  return ((i->coords[X] >= q->sw[X]) && (i->coords[X] <= q->ne[X]) &&
+          (i->coords[Y] >= q->sw[Y]) && (i->coords[Y] <= q->ne[Y]));
 
+}
 
 
 
@@ -113,6 +117,8 @@ void _init_root(QuadTree *qt) {
 
   root->is_inner = 1;
 
+  _nullify_quadrants(root->quadrants);
+
   qt->root = (Node *)root;
 
   assert(qt->ninners == 1);
@@ -132,7 +138,7 @@ void insert(QuadTree *qt, ITEM value, FLOAT coords[2]) {
 
   Item *item = _malloc(sizeof(Item));
 
-  item->value  = value;
+  item->value     = value;
   item->coords[0] = coords[0];
   item->coords[1] = coords[1];
 
@@ -144,15 +150,20 @@ void insert(QuadTree *qt, ITEM value, FLOAT coords[2]) {
 
 
 /* Note: *quadrant _is_ modified, but after _insert returns, it is no longer needed
- * (i.e., it's safe to use an auto variable */
+ * (i.e., it's safe to use the address of an auto variable */
 void _insert(QuadTree *qt, TransNode *node, Item *item, Quadrant *q) {
 
  RESTART:
 
+  assert(in_quadrant(item, q));
+
+  assert(q->ne[X] > q->sw[X]);
+  assert(q->ne[Y] > q->sw[Y]);
+
   if (node->is_inner) {
 
-    FLOAT div_x = (q->ne[X] - q->sw[X]) / 2;
-    FLOAT div_y = (q->ne[Y] - q->sw[Y]) / 2;
+    FLOAT div_x = q->sw[X] + (q->ne[X] - q->sw[X]) / 2;
+    FLOAT div_y = q->sw[Y] + (q->ne[Y] - q->sw[Y]) / 2;
 
     quadindex quad = 0;
 
@@ -198,10 +209,10 @@ int _itemcmp(Item *a, Item *b) {
   */
 
 
-  _Bool wrtx = _FLOATcmp(a->coords[X], b->coords[X]);
-  _Bool wrty = _FLOATcmp(a->coords[Y], b->coords[Y]);
+  int wrtx = _FLOATcmp(&a->coords[X], &b->coords[X]);
+  int wrty = _FLOATcmp(&a->coords[Y], &b->coords[Y]);
 
-  _Bool v = wrtx + (wrty * !wrtx);
+  int v = wrtx + (wrty * !wrtx);
 
   assert(v == -1 || v == 0 || v == 1);
 
@@ -212,8 +223,8 @@ int _itemcmp(Item *a, Item *b) {
   return v;
 }
 
-inline int _FLOATcmp(FLOAT a, FLOAT b) {
-  return (a > b) - (a < b);
+inline int _FLOATcmp(FLOAT *a, FLOAT *b) {
+  return (*a > *b) - (*a < *b);
 }
 
 
@@ -223,13 +234,13 @@ inline int _count_distinct_nodes(TransNode *node) {
      logic until there's a motivation to simplify it. */
 
 
-  qsort(*node->leaf.items, node->leaf.n, sizeof(Item), (__compar_fn_t)_itemcmp);
+  qsort(node->leaf.items, node->leaf.n, sizeof(Item *), (__compar_fn_t)_itemcmp);
 
-  int r = 0;
+  int r = node->leaf.n > 0;  /* 1 or 0 */
 
   BUCKETSIZE i;
   for (i=1; i<node->leaf.n; i++) {
-    if (_itemcmp(*node->leaf.items+i-1, *node->leaf.items+i))
+    if (_itemcmp(node->leaf.items[i-1], node->leaf.items[i]))
       r++;
   }
   return r;
@@ -238,9 +249,9 @@ inline int _count_distinct_nodes(TransNode *node) {
 
 inline void _init_leaf_node(QuadTree *qt, TransNode *node) {
   node->is_inner = 0;
-  node->leaf.items = _malloc(sizeof(Item) * qt->maxfill);
+  node->leaf.size = qt->maxfill;
+  node->leaf.items = _malloc(sizeof(Item *) * node->leaf.size);
   node->leaf.n = 0;
-  node->leaf.size = 0;
   qt->nleafs++;
 }
 
@@ -263,7 +274,7 @@ inline void _ensure_bucket_size(QuadTree *qt, TransNode *node, const Quadrant *q
 
   assert(!node->is_inner);
 
-  if ( (node->leaf.n+1 >= qt->maxfill) && (node->leaf.n+1 >= node->leaf.size)) {
+  if (node->leaf.n+1 >= node->leaf.size) {
     _split_node(qt, node, quadrant);
   }
 
@@ -289,7 +300,7 @@ void _split_node(QuadTree *qt, TransNode *node, const Quadrant *quadrant) {
 
     /* Nothing we can do to further split the nodes */
     node->leaf.size *= 2;
-    node->leaf.items = realloc(node->leaf.items, node->leaf.size*sizeof(Item));
+    node->leaf.items = realloc(node->leaf.items, node->leaf.size*sizeof(Item *));
 
   } else {
 
@@ -302,11 +313,11 @@ void _split_node(QuadTree *qt, TransNode *node, const Quadrant *quadrant) {
 
     _nullify_quadrants(node->quadrants);
 
+    Quadrant quadrant_;
     int i;
-
-    Quadrant quadrant_ = *quadrant;
-
     for (i=0; i<cpy.leaf.n; i++) {
+      quadrant_ = *quadrant;
+
       _insert(qt, node, cpy.leaf.items[i], &quadrant_);
     }
   }
