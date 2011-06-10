@@ -200,7 +200,9 @@ void _insert(QuadTree *qt, TransNode *node, Item *item, Quadrant *q) {
 
 
 
-int _itemcmp(Item *a, Item *b) {
+int _itemcmp(Item **aptr, Item **bptr) {
+
+  Item *a = *aptr, *b = *bptr;
 
   /* The C99 standard defines '||' so that it returns 0 or 1, so we
      can't use the more natural expression
@@ -228,7 +230,7 @@ inline int _FLOATcmp(FLOAT *a, FLOAT *b) {
 }
 
 
-inline int _count_distinct_nodes(TransNode *node) {
+inline int _count_distinct_items(TransNode *node) {
   /* This is pretty inefficient, since we only want to find if
      the number of distinct nodes is >1. However, I'm keeping this
      logic until there's a motivation to simplify it. */
@@ -240,7 +242,7 @@ inline int _count_distinct_nodes(TransNode *node) {
 
   BUCKETSIZE i;
   for (i=1; i<node->leaf.n; i++) {
-    if (_itemcmp(node->leaf.items[i-1], node->leaf.items[i]))
+    if (_itemcmp(&node->leaf.items[i-1], &node->leaf.items[i]))
       r++;
   }
   return r;
@@ -294,7 +296,7 @@ void _split_node(QuadTree *qt, TransNode *node, const Quadrant *quadrant) {
 
   assert(!node->is_inner);
 
-  int distinct = _count_distinct_nodes(node);
+  int distinct = _count_distinct_items(node);
 
   if (distinct == 1) {
 
@@ -320,6 +322,8 @@ void _split_node(QuadTree *qt, TransNode *node, const Quadrant *quadrant) {
 
       _insert(qt, node, cpy.leaf.items[i], &quadrant_);
     }
+
+    free(cpy.leaf.items);
   }
 }
 
@@ -390,6 +394,8 @@ void _finalise_leaf(FinaliseState *st) {
 
   for (i=0; i<leaf->n; i++) {
     leaf->items[i] = *cur->leaf.items[i];
+
+    free(cur->leaf.items[i]);
   }
 
   st->nextleaf.as_void += sizeof(Leaf) + sizeof(Item)*leaf->n;
