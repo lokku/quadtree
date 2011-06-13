@@ -162,27 +162,24 @@ void _qt_insert(QuadTree *qt, TransNode *node, Item *item, Quadrant *q) {
 
   if (node->is_inner) {
 
-    FLOAT div_x = q->sw[X] + (q->ne[X] - q->sw[X]) / 2;
-    FLOAT div_y = q->sw[Y] + (q->ne[Y] - q->sw[Y]) / 2;
-
     quadindex quad = 0;
+
+    FLOAT div_x, div_y;
+    CALCDIVS(div_x, div_y, q);
 
     if (item->coords[X] >= div_x) {
       EAST(quad);
-      q->sw[0] = div_x;
     } else {
       WEST(quad);
-      q->ne[0] = div_x;
     }
 
     if (item->coords[Y] >= div_y) {
       NORTH(quad);
-      q->sw[1] = div_y;
     } else {
       SOUTH(quad);
-      q->ne[1] = div_y;
     }
 
+    _target_quadrant(quad, q);
     _ensure_child_quad(qt, node, quad, item);
     _qt_insert(qt, node->quadrants[quad], item, q);
 
@@ -339,7 +336,7 @@ void qt_finalise(QuadTree *qt) {
     exit(1);
   }
 
-  Qt_FinaliseState st;
+  FinaliseState st;
 
   u_int64_t bytes = sizeof(Inner)*qt->ninners + sizeof(Leaf)*qt->nleafs + sizeof(Item)*qt->size;
 
@@ -359,7 +356,7 @@ void qt_finalise(QuadTree *qt) {
 
 }
 
-void _qt_finalise_inner(Qt_FinaliseState *st) {
+void _qt_finalise_inner(FinaliseState *st) {
 
   int i;
   TransNode *cur = st->cur;
@@ -383,7 +380,7 @@ void _qt_finalise_inner(Qt_FinaliseState *st) {
 #endif
 }
 
-void _qt_finalise_leaf(Qt_FinaliseState *st) {
+void _qt_finalise_leaf(FinaliseState *st) {
 
   int i;
   TransNode *cur = st->cur;
@@ -412,7 +409,7 @@ void _qt_finalise_leaf(Qt_FinaliseState *st) {
 
 
 
-inline void _qt_finalise(Qt_FinaliseState *st) {
+inline void _qt_finalise(FinaliseState *st) {
 
   assert(st->cur != NULL);
 
@@ -425,9 +422,9 @@ inline void _qt_finalise(Qt_FinaliseState *st) {
 
 
 
-inline QT_Iterator *qt_query_itr(QuadTree *qt, Quadrant *region) {
+inline Qt_Iterator *qt_query_itr(QuadTree *qt, Quadrant *region) {
 
-  QT_Iterator *itr = (QT_Iterator *)_malloc(sizeof(QT_Iterator));
+  Qt_Iterator *itr = (Qt_Iterator *)_malloc(sizeof(Qt_Iterator));
 
   itr->region = *region;
 
@@ -438,12 +435,17 @@ inline QT_Iterator *qt_query_itr(QuadTree *qt, Quadrant *region) {
 
   *itr->sp = qt->root;
 
+  _itr_next_recursive(itr);
+
+  return itr;
 }
 
 
-ITEM *qt_itr_next(QT_Iterator *itr) {
+inline ITEM *qt_itr_next(Qt_Iterator *itr) {
 
-  _Bool moreitems = ((Leaf *)itr->sp)->n-1 >= itr->curitem;
+ ENTER:
+
+  _Bool moreitems = itr->stack[itr->so].node.as_leaf.n -1 >= itr->curitem;
 
   /* Cunning use of '*' instead of '&&' to avoid a pipeline stall.
    * Note that no shortcutting is done, so the second operand to '*'
@@ -454,67 +456,128 @@ ITEM *qt_itr_next(QT_Iterator *itr) {
    */
   if ((itr->lp != NULL) * moreitems) {
     return itr->lp->items + itr->curitem++;
+  } else if (itr->lp == NULL) {
+    return NULL;
   } else {
-    if (itr->lp == NULL) {
-      do {
-        --itr->so;
-
-        assert(itr->stack[itr->so].node.as_node < itr->quadtree->divider);
-
-        while (++itr->stack[itr->so].quadrant < QUAD) {
-
-          if (OVERLAP(itr->region, itr->stack[itr->so].region))
-            goto OKAY;
-
-        }
-
-      } while ((itr->so >= 0) * (itr->stack[itr->so].quadrant >= QUAD));
-
-      return NULL;
-
-    OKAY:
-
-      assert(itr->so >= 0);
-      assert(OVERLAP(itr->stack[itr->so].region, itr->region));
-
-      itr->so++;
-      itr->stack[itr->so].quadrant = 0;
-      itr->stack[itr->so].region   = 
-
-
-
-    } else {
-    }
+    itr->so--;
+    itr->stack[itr->so].quadrant++;
+    _itr_next_recursive(itr);
+    goto ENTER;
   }
+}
 
+
+ITEM *_itr_next_recursive(Qt_Iterator *itr) {
+  if (IS_LEAF(itr->quadtree, itr->stack[itr->so].node.as_node)) {
+
+    itr->curitem = 0;
+    itr->lp = itr->stack[itr->so].node.as_node;
+    return;
+
+    /* Done. (Success)
+     *
+     * post-conditions:
+     *   * itr->stack[itr->so].quadrant     has _not_ been traversed yet.
+     *   * itr->stack[itr->so -1].quadrant  has _not_ been traversed yet.
+     *   * itr->stack[itr->so].curitem      has _not_ been returned yet.
+     *   * itr->stack[itr->so   ]           is the currently-visited node
+     */
+
+
+  } else {
+
+    Quadrant rgncpy;
+
+    /*
+     * invarient: itr->stack[itr->so].quadrant has _not_ been traversed yet.
+     */
+
+    while (itr->so >= 0) {
+      assert(IS_INNER(itr->quadtree, itr->stack[itr->so].node.as_node));
+
+      /* Loop through each quadrant */
+      while (itr->stack[itr->so].quadrant < QUAD) {
+
+        /* Skip empty/uninitialised quadrants */
+        if (itr->stack[itr->so].quadrants[itr->stack[itr->so].quadrant] == NULL)
+          next;
+
+        rgncpy = itr->stack[itr->so].region;
+
+        _target_quadrant(itr->stack[itr->so].quadrant, rgncpy);
+
+        if (OVERLAP(itr->region, rgncpy))
+          goto OKAY;
+
+        /* Skip to the next quadrant */
+        itr->stack[itr->so].quadrant++;
+
+      }
+
+      /* No quadrants on this node remaining --- backtrack one node */
+      --itr->so;
+
+    }
+
+    assert(itr->so == -1);
+
+    itr->lp = NULL;
+
+    /* Failure.
+     *
+     * post-condition:
+     *   itr->lp == NULL, and by virtue of this,
+     *   the next call to qt_itr_next() will return NULL.
+     */
+    return;
+
+  OKAY:
+
+    assert(itr->so >= 0);
+    assert(OVERLAP(itr->stack[itr->so].region, itr->region));
+
+    itr->so++;
+    itr->stack[itr->so].quadrant = 0;
+    itr->stack[itr->so].region   = rgncpy;
+
+    /* Recurse.
+     *
+     * post-conditions:
+     *   * itr->stack[itr->so].quadrant     has _not_ been traversed yet.
+     *   * itr->stack[itr->so -1].quadrant  has _not_ been traversed yet.
+     *   * itr->stack[itr->so   ]           is the currently-visited node
+     */
+
+    return _itr_next_recursive(itr);
+
+
+  }
 }
 
 
 
 
 
-
-
-inline void target_quadrant(Quadrants q, Quadrant region) {
+inline void _target_quadrant(Quadrants q, Quadrant *region) {
 
 
   ASSERT_REGION_SANE(region);
 
 
-  FLOAT div_x = region->sw[X] + (region->ne[X] - region->sw[X]) / 2;
-  FLOAT div_y = region->sw[Y] + (region->ne[Y] - region->sw[Y]) / 2;
+  FLOAT div_x, div_y;
+  CALCDIVS(div_x, div_y);
 
 
   if (ISSOUTH(q)) {
-    region.ne[1] = div_y;
+    region->ne[1] = div_y;
   } else {
-    region.sw[1] = div_y;
+    region->sw[1] = div_y;
   }
 
   if (ISEAST(q)) {
-    region.sw[0] = div_x;
+    region->sw[0] = div_x;
   } else {
-    region.ne[0] = div_x;
+    region->ne[0] = div_x;
   }
 
 
