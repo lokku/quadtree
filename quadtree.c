@@ -89,7 +89,7 @@ _Bool in_quadrant(Item *i, Quadrant *q) {
 
 
 
-QuadTree *create_quadtree(Quadrant *region, BUCKETSIZE maxfill) {
+QuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill) {
 
   QuadTree *qt = (QuadTree *)_malloc(sizeof(QuadTree));
 
@@ -126,7 +126,7 @@ void _init_root(QuadTree *qt) {
 
 
 
-void insert(QuadTree *qt, ITEM value, FLOAT coords[2]) {
+void qt_insert(QuadTree *qt, ITEM value, FLOAT coords[2]) {
 
   if (qt->mem.as_void != NULL) {
     fprintf(stderr, "error: attempt to insert into the quadtree after finalisation\n");
@@ -144,14 +144,14 @@ void insert(QuadTree *qt, ITEM value, FLOAT coords[2]) {
 
   Quadrant quadrant = qt->region;
 
-  _insert(qt, (TransNode *)qt->root, item, &quadrant);
+  _qt_insert(qt, (TransNode *)qt->root, item, &quadrant);
 
 }
 
 
 /* Note: *quadrant _is_ modified, but after _insert returns, it is no longer needed
  * (i.e., it's safe to use the address of an auto variable */
-void _insert(QuadTree *qt, TransNode *node, Item *item, Quadrant *q) {
+void _qt_insert(QuadTree *qt, TransNode *node, Item *item, Quadrant *q) {
 
  RESTART:
 
@@ -184,7 +184,7 @@ void _insert(QuadTree *qt, TransNode *node, Item *item, Quadrant *q) {
     }
 
     _ensure_child_quad(qt, node, quad, item);
-    _insert(qt, node->quadrants[quad], item, q);
+    _qt_insert(qt, node->quadrants[quad], item, q);
 
   } else {  /* $node is a leaf */
 
@@ -320,7 +320,7 @@ void _split_node(QuadTree *qt, TransNode *node, const Quadrant *quadrant) {
     for (i=0; i<cpy.leaf.n; i++) {
       quadrant_ = *quadrant;
 
-      _insert(qt, node, cpy.leaf.items[i], &quadrant_);
+      _qt_insert(qt, node, cpy.leaf.items[i], &quadrant_);
     }
 
     free(cpy.leaf.items);
@@ -332,14 +332,14 @@ void _split_node(QuadTree *qt, TransNode *node, const Quadrant *quadrant) {
 
 
 
-void finalise(QuadTree *qt) {
+void qt_finalise(QuadTree *qt) {
 
   if (qt->mem.as_void != NULL) {
-    fprintf(stderr, "error: quadtree already finalised");
+    fprintf(stderr, "error: quadtree already qt_finalised");
     exit(1);
   }
 
-  FinaliseState st;
+  Qt_FinaliseState st;
 
   u_int64_t bytes = sizeof(Inner)*qt->ninners + sizeof(Leaf)*qt->nleafs + sizeof(Item)*qt->size;
 
@@ -355,11 +355,11 @@ void finalise(QuadTree *qt) {
   st.nextleaf.as_void = qt->divider;
   st.cur              = qt->root;
 
-  _finalise(&st);
+  _qt_finalise(&st);
 
 }
 
-void _finalise_inner(FinaliseState *st) {
+void _qt_finalise_inner(Qt_FinaliseState *st) {
 
   int i;
   TransNode *cur = st->cur;
@@ -372,7 +372,7 @@ void _finalise_inner(FinaliseState *st) {
       inner->quadrants[i] = 0;
     } else {
       inner->quadrants[i] = st->ninners;
-      _finalise(st);
+      _qt_finalise(st);
     }
   }
 
@@ -383,7 +383,7 @@ void _finalise_inner(FinaliseState *st) {
 #endif
 }
 
-void _finalise_leaf(FinaliseState *st) {
+void _qt_finalise_leaf(Qt_FinaliseState *st) {
 
   int i;
   TransNode *cur = st->cur;
@@ -412,13 +412,113 @@ void _finalise_leaf(FinaliseState *st) {
 
 
 
-inline void _finalise(FinaliseState *st) {
+inline void _qt_finalise(Qt_FinaliseState *st) {
 
   assert(st->cur != NULL);
 
   if (st->cur->is_inner) {
-    _finalise_inner(st);
+    _qt_finalise_inner(st);
   } else {
-    _finalise_leaf(st);
+    _qt_finalise_leaf(st);
   }
+}
+
+
+
+inline QT_Iterator *qt_query_itr(QuadTree *qt, Quadrant *region) {
+
+  QT_Iterator *itr = (QT_Iterator *)_malloc(sizeof(QT_Iterator));
+
+  itr->region = *region;
+
+  itr->node_stack = _malloc(sizeof(itr->node_stack) * qt->maxdepth);
+  itr->quad_stack = _malloc(sizeof(itr->quad_stack) * qt->maxdepth);
+
+  itr->sp = itr->stack;
+
+  *itr->sp = qt->root;
+
+}
+
+
+ITEM *qt_itr_next(QT_Iterator *itr) {
+
+  _Bool moreitems = ((Leaf *)itr->sp)->n-1 >= itr->curitem;
+
+  /* Cunning use of '*' instead of '&&' to avoid a pipeline stall.
+   * Note that no shortcutting is done, so the second operand to '*'
+   * is always evaluated, regardless of the outcome of the first,
+   * but this doesn't matter: we know that itr->sp points to malloc()ed
+   * memory, so won't segfault even if the actual data is not really
+   * a Leaf.
+   */
+  if ((itr->lp != NULL) * moreitems) {
+    return itr->lp->items + itr->curitem++;
+  } else {
+    if (itr->lp == NULL) {
+      do {
+        --itr->so;
+
+        assert(itr->stack[itr->so].node.as_node < itr->quadtree->divider);
+
+        while (++itr->stack[itr->so].quadrant < QUAD) {
+
+          if (OVERLAP(itr->region, itr->stack[itr->so].region))
+            goto OKAY;
+
+        }
+
+      } while ((itr->so >= 0) * (itr->stack[itr->so].quadrant >= QUAD));
+
+      return NULL;
+
+    OKAY:
+
+      assert(itr->so >= 0);
+      assert(OVERLAP(itr->stack[itr->so].region, itr->region));
+
+      itr->so++;
+      itr->stack[itr->so].quadrant = 0;
+      itr->stack[itr->so].region   = 
+
+
+
+    } else {
+    }
+  }
+
+}
+
+
+
+
+
+
+
+inline void target_quadrant(Quadrants q, Quadrant region) {
+
+
+  ASSERT_REGION_SANE(region);
+
+
+  FLOAT div_x = region->sw[X] + (region->ne[X] - region->sw[X]) / 2;
+  FLOAT div_y = region->sw[Y] + (region->ne[Y] - region->sw[Y]) / 2;
+
+
+  if (ISSOUTH(q)) {
+    region.ne[1] = div_y;
+  } else {
+    region.sw[1] = div_y;
+  }
+
+  if (ISEAST(q)) {
+    region.sw[0] = div_x;
+  } else {
+    region.ne[0] = div_x;
+  }
+
+
+  ASSERT_REGION_SANE(region);
+
+
 }

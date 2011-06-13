@@ -2,7 +2,7 @@
 
 
 
-all: bi-traverse linear-traverse
+all: bi-traverse linear-traverse non-linear-traverse linear-traverse2
 
 
 clean:
