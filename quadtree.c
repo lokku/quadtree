@@ -106,8 +106,8 @@ QuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill) {
 
   qt->size = 0;
 
-  qt->mem.as_void = NULL;
-  qt->divider     = NULL;
+  qt->mem.as_void     = NULL;
+  qt->divider.as_void = NULL;
 
   qt->maxdepth = 0;
   qt->maxfill  = maxfill;
@@ -354,15 +354,14 @@ void qt_finalise(QuadTree *qt) {
 
   u_int64_t bytes = sizeof(Inner)*qt->ninners + sizeof(Leaf)*qt->nleafs + sizeof(Item)*qt->size;
 
-  qt->mem.as_void = _malloc(bytes);
+  qt->mem.as_void     = _malloc(bytes);
 
-  qt->divider       = qt->mem.as_void + qt->ninners*sizeof(Inner);
+  qt->divider.as_void = (void *)&qt->mem.as_inner[qt->ninners];
 
-  qt->items.as_void = qt->divider + sizeof(Leaf)*qt->nleafs;
+  qt->items.as_void   = qt->divider.as_void + sizeof(Leaf)*qt->nleafs + sizeof(Item)*qt->size;
 
   st.quadtree = qt;
   st.ninners  = 0;
-  st.nleafs   = 0;
   st.cur_trans        = qt->root;
   st.cur_node.as_void = qt->mem.as_void;
 
@@ -373,6 +372,11 @@ void qt_finalise(QuadTree *qt) {
 }
 
 /*
+ *
+ * pre-condition:
+ *   * st->cur_node points to the memory address for the translated
+ *     st->cur_trans node.
+ *
  * Side-effects:
  *   * increments st->ninners
  *   * updates st->cur to child node
@@ -387,17 +391,20 @@ void _qt_finalise_inner(FinaliseState *st) {
   st->ninners++;
 
   for (i=0; i<4; i++) {
-    st->cur = cur->quadrants[i];
+    /* Set st->cur_trans to the child, ready for recursion */
+    st->cur_trans = cur->quadrants[i];
 
-    if (st->cur == NULL) {
+    if (st->cur_trans == NULL) {
       inner->quadrants[i] = ROOT;
     } else {
       /* Note: st->ninners is the offset within mem of the _next_
        * node to be finalised (i.e., _not_ this one).
        */
-      inner->quadrants[i] = st->cur->is_inner ?
-        &st->quadtree->mem.as_inner[st->ninners] :
-        &st->quadtree->mem.as_leaf[st->nleafs];
+      st->cur_node.as_void = st->cur_trans->is_inner ?
+        (void *) &st->quadtree->mem.as_inner[st->ninners] :
+        (void *) &st->next_leaf;
+
+      inner->quadrants[i] = st->cur_node.as_void - st->quadtree->mem.as_void;
 
       _qt_finalise(st);
     }
@@ -406,18 +413,20 @@ void _qt_finalise_inner(FinaliseState *st) {
   free(cur);
 
 #ifndef NDEBUG
-  st->cur = NULL;
+  st->cur_trans = NULL;
 #endif
 }
 
 void _qt_finalise_leaf(FinaliseState *st) {
 
+  assert(st->cur_node.as_void >= st->quadtree->divider.as_void);
+
+  st->next_leaf+= sizeof(Leaf) + st->cur_trans->leaf.n*sizeof(Item);
+
   int i;
-  TransNode *cur = st->cur;
+  TransNode *cur = st->cur_trans;
 
   Leaf *leaf = st->cur_node.as_leaf;
-
-  st->nleafs++;
 
   leaf->n = cur->leaf.n;
 
@@ -427,14 +436,11 @@ void _qt_finalise_leaf(FinaliseState *st) {
     free(cur->leaf.items[i]);
   }
 
-  st->nextleaf.as_void += sizeof(Leaf) + sizeof(Item)*leaf->n;
-  st->nleafs++;
-
   free(cur->leaf.items);
   free(cur);
 
 #ifndef NDEBUG
-  st->cur = NULL;
+  st->cur_trans = NULL;
 #endif
 }
 
@@ -443,9 +449,9 @@ void _qt_finalise_leaf(FinaliseState *st) {
 
 inline void _qt_finalise(FinaliseState *st) {
 
-  assert(st->cur != NULL);
+  assert(st->cur_trans != NULL);
 
-  if (st->cur->is_inner) {
+  if (st->cur_trans->is_inner) {
     _qt_finalise_inner(st);
   } else {
     _qt_finalise_leaf(st);
@@ -490,7 +496,7 @@ inline Item *qt_itr_next(Qt_Iterator *itr) {
    * a Leaf.
    */
   if ((itr->lp != NULL) * moreitems) {
-    return itr->lp->items + itr->cur_item++;
+    return &itr->lp->items[itr->cur_item++];
   } else if (itr->lp == NULL) {
     return NULL;
   } else {
@@ -637,15 +643,17 @@ Item **qt_query_ary(const QuadTree *quadtree, const Quadrant *region, u_int64_t 
 
   Qt_Iterator *itr = qt_query_itr(quadtree, region);
 
-  u_int64_t i=0;
-  while ((items[i++] = qt_itr_next(itr)) != NULL) {
-    if (i >= *maxn)
+  u_int64_t i;
+  for (i=0; (items[i] = qt_itr_next(itr)) != NULL; i++) {
+    if (*maxn > 0 && i >= *maxn)
       break;
-    if (i >= alloced) {
+    if (i+1 >= alloced) {
       alloced*= 2;
-      items = _realloc(items, alloced);
+      items = _realloc(items, sizeof(*items) * alloced);
     }
   }
+
+  *maxn = i;
 
   free(itr);
 

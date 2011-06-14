@@ -108,6 +108,7 @@ void populate_regions(QuadTree *qt, region *regions, short int nregions) {
 u_int64_t check(QuadTree *qt, const region *regions, short int nregions) {
 
   u_int64_t errors = 0;
+
   short int i;
   for (i=0; i<nregions; i++) {
     u_int64_t maxn = 0;
@@ -118,11 +119,23 @@ u_int64_t check(QuadTree *qt, const region *regions, short int nregions) {
     /* Sort results so comparable with those in regions[i] */
     qsort(items, maxn, sizeof(Item), (__compar_fn_t)_itemcmp);
 
+    /* Check the number of records returned */
+    if (maxn != regions[i].n) {
+      errors+= regions[i].n;
+      printf("error: got %ld records, expected %ld\n", maxn, regions[i].n);
+      continue;
+    }
+
+
     /* Compare results with expected results */
     int j;
     for (j=0; j<maxn; j++) {
-      if (items[j]->value != regions[i].items[j].value)
+      if (0 != _itemcmp_direct(items[j], &regions[i].items[j])) {
         errors++;
+      } else {
+        printf("correct: { value = %ld, x = %lf, y = %lf }\n",
+               items[j]->value, items[j]->coords[0], items[j]->coords[1]);
+      }
     }
   }
 
