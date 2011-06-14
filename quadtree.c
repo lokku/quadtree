@@ -63,7 +63,7 @@ inline void *_malloc(size_t size) {
 }
 
 inline void *_realloc(void *ptr, size_t size) {
-  void *ptr = realloc(ptr, size);
+  ptr = realloc(ptr, size);
   if (ptr == NULL) {
     fprintf(stderr, "realloc: couldn't allocate %ld bytes", size);
     perror("realloc");
@@ -135,7 +135,7 @@ void _init_root(QuadTree *qt) {
 
 
 
-void qt_insert(QuadTree *qt, ITEM value, FLOAT coords[2]) {
+void qt_insert(QuadTree *qt, Item item) {
 
   if (qt->mem.as_void != NULL) {
     fprintf(stderr, "error: attempt to insert into the quadtree after finalisation\n");
@@ -145,22 +145,24 @@ void qt_insert(QuadTree *qt, ITEM value, FLOAT coords[2]) {
   qt->size++;
 
 
-  Item *item = _malloc(sizeof(Item));
+  Item *itmcpy = _malloc(sizeof(Item));
 
-  item->value     = value;
-  item->coords[0] = coords[0];
-  item->coords[1] = coords[1];
+  *itmcpy = item;
 
   Quadrant quadrant = qt->region;
 
-  _qt_insert(qt, (TransNode *)qt->root, item, &quadrant);
+  _qt_insert(qt, (TransNode *)qt->root, itmcpy, &quadrant, 0);
 
 }
 
 
 /* Note: *quadrant _is_ modified, but after _insert returns, it is no longer needed
  * (i.e., it's safe to use the address of an auto variable */
-void _qt_insert(QuadTree *qt, TransNode *node, Item *item, Quadrant *q) {
+void _qt_insert(QuadTree *qt, TransNode *node, Item *item, Quadrant *q, unsigned int depth) {
+
+  if (++depth > qt->maxdepth)
+    qt->maxdepth = depth;
+
 
  RESTART:
 
@@ -190,11 +192,11 @@ void _qt_insert(QuadTree *qt, TransNode *node, Item *item, Quadrant *q) {
 
     _target_quadrant(quad, q);
     _ensure_child_quad(qt, node, quad, item);
-    _qt_insert(qt, node->quadrants[quad], item, q);
+    _qt_insert(qt, node->quadrants[quad], item, q, depth);
 
   } else {  /* $node is a leaf */
 
-    _ensure_bucket_size(qt, node, q);
+    _ensure_bucket_size(qt, node, q, depth);
 
     if (node->is_inner)
       goto RESTART;
@@ -205,6 +207,10 @@ void _qt_insert(QuadTree *qt, TransNode *node, Item *item, Quadrant *q) {
 
 
 
+
+int _itemcmp_direct(Item *a, Item *b) {
+  return _itemcmp(&a, &b);
+}
 
 int _itemcmp(Item **aptr, Item **bptr) {
 
@@ -278,12 +284,12 @@ inline void _ensure_child_quad(QuadTree *qt, TransNode *node, quadindex quad, It
  * it may be a leaf node when the function terminates (i.e., the node's
  * type may change as a side effect of this function).
  */
-inline void _ensure_bucket_size(QuadTree *qt, TransNode *node, const Quadrant *quadrant) {
+inline void _ensure_bucket_size(QuadTree *qt, TransNode *node, const Quadrant *quadrant, unsigned int depth) {
 
   assert(!node->is_inner);
 
   if (node->leaf.n+1 >= node->leaf.size) {
-    _split_node(qt, node, quadrant);
+    _split_node(qt, node, quadrant, depth);
   }
 
 #ifndef NDEBUG
@@ -297,8 +303,7 @@ inline void _ensure_bucket_size(QuadTree *qt, TransNode *node, const Quadrant *q
 }
 
 
-/* Maximum recursion depth: 64 assuming double-type coordinates */
-void _split_node(QuadTree *qt, TransNode *node, const Quadrant *quadrant) {
+void _split_node(QuadTree *qt, TransNode *node, const Quadrant *quadrant, unsigned int depth) {
 
   assert(!node->is_inner);
 
@@ -326,7 +331,7 @@ void _split_node(QuadTree *qt, TransNode *node, const Quadrant *quadrant) {
     for (i=0; i<cpy.leaf.n; i++) {
       quadrant_ = *quadrant;
 
-      _qt_insert(qt, node, cpy.leaf.items[i], &quadrant_);
+      _qt_insert(qt, node, cpy.leaf.items[i], &quadrant_, depth-1);
     }
 
     free(cpy.leaf.items);
@@ -358,26 +363,42 @@ void qt_finalise(QuadTree *qt) {
   st.quadtree = qt;
   st.ninners  = 0;
   st.nleafs   = 0;
-  st.nextleaf.as_void = qt->divider;
-  st.cur              = qt->root;
+  st.cur_trans        = qt->root;
+  st.cur_node.as_void = qt->mem.as_void;
 
   _qt_finalise(&st);
 
+  qt->root = qt->mem.as_void;
+
 }
 
+/*
+ * Side-effects:
+ *   * increments st->ninners
+ *   * updates st->cur to child node
+ *   * updates (st->quadtree->mem.as_inner+X)->quadrants[Y]
+ */
 void _qt_finalise_inner(FinaliseState *st) {
 
   int i;
-  TransNode *cur = st->cur;
-  Inner *inner = st->quadtree->mem.as_inner + st->ninners++;
+  TransNode *const cur = st->cur_trans;
+  Inner *const inner = st->cur_node.as_inner;
+
+  st->ninners++;
 
   for (i=0; i<4; i++) {
     st->cur = cur->quadrants[i];
 
     if (st->cur == NULL) {
-      inner->quadrants[i] = 0;
+      inner->quadrants[i] = ROOT;
     } else {
-      inner->quadrants[i] = st->ninners;
+      /* Note: st->ninners is the offset within mem of the _next_
+       * node to be finalised (i.e., _not_ this one).
+       */
+      inner->quadrants[i] = st->cur->is_inner ?
+        &st->quadtree->mem.as_inner[st->ninners] :
+        &st->quadtree->mem.as_leaf[st->nleafs];
+
       _qt_finalise(st);
     }
   }
@@ -394,7 +415,9 @@ void _qt_finalise_leaf(FinaliseState *st) {
   int i;
   TransNode *cur = st->cur;
 
-  Leaf *leaf = st->nextleaf.as_leaf;
+  Leaf *leaf = st->cur_node.as_leaf;
+
+  st->nleafs++;
 
   leaf->n = cur->leaf.n;
 
@@ -430,13 +453,14 @@ inline void _qt_finalise(FinaliseState *st) {
 }
 
 
-inline Qt_Iterator *qt_query_itr(QuadTree *qt, Quadrant *region) {
+inline Qt_Iterator *qt_query_itr(const QuadTree *qt, const Quadrant *region) {
 
   Qt_Iterator *itr = (Qt_Iterator *)_malloc(sizeof(Qt_Iterator));
 
+  itr->quadtree = qt;
   itr->region = *region;
 
-  itr->stack = _malloc(sizeof(itr->stack) * qt->maxdepth);
+  itr->stack = _malloc(sizeof(*itr->stack) * qt->maxdepth);
 
   itr->so = 0;
 
@@ -479,6 +503,9 @@ inline Item *qt_itr_next(Qt_Iterator *itr) {
 
 
 void _itr_next_recursive(Qt_Iterator *itr) {
+
+  assert(itr->so >= 0);
+
   if (IS_LEAF(itr->quadtree, itr->stack[itr->so].node.as_node)) {
 
     itr->cur_item = 0;
@@ -518,7 +545,7 @@ void _itr_next_recursive(Qt_Iterator *itr) {
         _target_quadrant(itr->stack[itr->so].quadrant, &rgncpy);
 
         if (OVERLAP(itr->region, rgncpy))
-          goto OKAY;
+          goto RECURSE;
 
         /* Skip to the next quadrant */
         itr->stack[itr->so].quadrant++;
@@ -542,7 +569,7 @@ void _itr_next_recursive(Qt_Iterator *itr) {
      */
     return;
 
-  OKAY:
+  RECURSE:
 
     assert(itr->so >= 0);
     assert(OVERLAP(itr->stack[itr->so].region, itr->region));
@@ -603,17 +630,16 @@ inline void _target_quadrant(quadindex q, Quadrant *region) {
 
 }
 
-Item *qt_query_ary(const QuadTree *quadtree, const Quadrant *region, u_int64_t *maxn) {
+Item **qt_query_ary(const QuadTree *quadtree, const Quadrant *region, u_int64_t *maxn) {
 
-  u_int64_t size = 0;
   u_int64_t alloced = 32;
-  Item *items = _malloc(sizeof(Item) * alloced);
+  Item **items = _malloc(sizeof(*items) * alloced);
 
   Qt_Iterator *itr = qt_query_itr(quadtree, region);
 
   u_int64_t i=0;
   while ((items[i++] = qt_itr_next(itr)) != NULL) {
-    if (i >= maxn)
+    if (i >= *maxn)
       break;
     if (i >= alloced) {
       alloced*= 2;

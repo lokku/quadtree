@@ -16,13 +16,13 @@
 
 
 typedef struct {
-  FLOAT ne[2];
-  FLOAT sw[2];
+
+  Quadrant region;
 
   u_int64_t n;
   u_int64_t maxn;
 
-  ITEM *ids;
+  Item *items;
 } region;
 
 
@@ -32,39 +32,50 @@ inline FLOAT rnd() {
 }
 
 _Bool in_region(region *r, FLOAT coords[2]) {
-  return ((coords[X] >= r->sw[X]) && (coords[X] <= r->ne[X]) &&
-          (coords[Y] >= r->sw[Y]) && (coords[Y] <= r->ne[Y]));
+  return ((coords[X] >= r->region.sw[X]) && (coords[X] <= r->region.ne[X]) &&
+          (coords[Y] >= r->region.sw[Y]) && (coords[Y] <= r->region.ne[Y]));
 
 }
 
 void populate(QuadTree *qt, region *regions, short int nregions, ITEM n) {
   ITEM i;
   short int j;
-  FLOAT coords[2];
   for (i=0; i<n; i++) {
 
-    coords[0] = rnd();
-    coords[1] = rnd();
+    Item item;
 
-    qt_insert(qt, i, coords);
+    item.value     = i;
+
+    item.coords[0] = rnd();
+    item.coords[1] = rnd();
+
+    qt_insert(qt, item);
 
     for (j=0; j<nregions; j++) {
-      if (in_region(regions+j, coords)) {
-        if ((regions[j].ids == NULL) || (regions[j].n+1 > regions[j].maxn)) {
+      if (in_region(regions+j, item.coords)) {
+
+        /* Grow/alloc memory if needed */
+        if ((regions[j].items == NULL) || (regions[j].n+1 > regions[j].maxn)) {
           if (regions[j].maxn == 0)
             regions[j].maxn = 32;
           regions[j].maxn  *= 2;
-          regions[j].ids = realloc(regions[j].ids, sizeof(ITEM)*regions[j].maxn);
+          regions[j].items = realloc(regions[j].items, sizeof(Item)*regions[j].maxn);
         }
-        regions[j].ids[regions[j].n++] = i;
+
+        /* Add item to region */
+        regions[j].items[regions[j].n++] = item;
       }
     }
-
-    for (j=0; j<nregions; j++) {
-      qsort(regions[j].items, regions[j].n, sizeof(Item), (__compar_fn_t)_itemcmp);
-    }
-
   }
+
+
+  /* Sort the regions by their coordinates so as to be able to compare them
+   * to the quadtree output when querying later */
+  for (j=0; j<nregions; j++) {
+    qsort(regions[j].items, regions[j].n, sizeof(Item), (__compar_fn_t)_itemcmp_direct);
+  }
+
+
 }
 
 void populate_regions(QuadTree *qt, region *regions, short int nregions) {
@@ -78,29 +89,44 @@ void populate_regions(QuadTree *qt, region *regions, short int nregions) {
     qsort(rands,   2, sizeof(FLOAT), (__compar_fn_t)_FLOATcmp);
     qsort(rands+2, 2, sizeof(FLOAT), (__compar_fn_t)_FLOATcmp);
 
-    regions[i].ne[0] = rands[1];
-    regions[i].sw[0] = rands[0];
+    regions[i].region.ne[0] = rands[1];
+    regions[i].region.sw[0] = rands[0];
 
-    regions[i].ne[1] = rands[3];
-    regions[i].sw[1] = rands[2];
+    regions[i].region.ne[1] = rands[3];
+    regions[i].region.sw[1] = rands[2];
 
-    regions[i].ids   = NULL;
+    regions[i].items = NULL;
     regions[i].n     = 0;
     regions[i].maxn  = 0;
 
 
-    assert(regions[i].ne[0] >= regions[i].sw[0]);
-    assert(regions[i].ne[1] >= regions[i].sw[1]);
+    assert(regions[i].region.ne[0] >= regions[i].region.sw[0]);
+    assert(regions[i].region.ne[1] >= regions[i].region.sw[1]);
   }
 }
 
 u_int64_t check(QuadTree *qt, const region *regions, short int nregions) {
 
-  while (--nregions >= 0) {
+  u_int64_t errors = 0;
+  short int i;
+  for (i=0; i<nregions; i++) {
     u_int64_t maxn = 0;
-    Item *items = q_query_ary(qt, regions+nregions, &maxn);
+
+    /* Query quadtree */
+    Item **items = qt_query_ary(qt, &regions[i].region, &maxn);
+
+    /* Sort results so comparable with those in regions[i] */
     qsort(items, maxn, sizeof(Item), (__compar_fn_t)_itemcmp);
+
+    /* Compare results with expected results */
+    int j;
+    for (j=0; j<maxn; j++) {
+      if (items[j]->value != regions[i].items[j].value)
+        errors++;
+    }
   }
+
+  return errors;
 
 }
 
@@ -126,6 +152,13 @@ int main(int argc, char **argv) {
   populate(qt, regions, nregions, 99999);
 
   qt_finalise(qt);
+
+  u_int64_t errors = check(qt, regions, nregions);
+
+  if (errors) {
+    printf("errors: %ld\n", errors);
+    exit(!!errors);
+  }
 
   return 0;
 }

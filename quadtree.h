@@ -39,12 +39,12 @@ typedef struct Item Item;
 
 extern QuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill);
 
-extern void qt_insert(QuadTree *quadtree, const Item *item);
+extern void qt_insert(QuadTree *quadtree, Item item);
 extern void qt_finalise(QuadTree *quadtree);
 
 
 
-extern Item *qt_query_ary(const QuadTree *quadtree, const Quadrant *region, u_int64_t *maxn);
+extern Item **qt_query_ary(const QuadTree *quadtree, const Quadrant *region, u_int64_t *maxn);
 
 extern Qt_Iterator *qt_query_itr(const QuadTree *quadtree, const Quadrant *region);
 
