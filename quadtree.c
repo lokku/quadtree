@@ -62,6 +62,15 @@ inline void *_malloc(size_t size) {
   return ptr;
 }
 
+inline void *_realloc(void *ptr, size_t size) {
+  void *ptr = realloc(ptr, size);
+  if (ptr == NULL) {
+    fprintf(stderr, "realloc: couldn't allocate %ld bytes", size);
+    perror("realloc");
+  }
+  return ptr;
+}
+
 
 
 
@@ -299,7 +308,7 @@ void _split_node(QuadTree *qt, TransNode *node, const Quadrant *quadrant) {
 
     /* Nothing we can do to further split the nodes */
     node->leaf.size *= 2;
-    node->leaf.items = realloc(node->leaf.items, node->leaf.size*sizeof(Item *));
+    node->leaf.items = _realloc(node->leaf.items, node->leaf.size*sizeof(Item *));
 
   } else {
 
@@ -421,19 +430,19 @@ inline void _qt_finalise(FinaliseState *st) {
 }
 
 
-
 inline Qt_Iterator *qt_query_itr(QuadTree *qt, Quadrant *region) {
 
   Qt_Iterator *itr = (Qt_Iterator *)_malloc(sizeof(Qt_Iterator));
 
   itr->region = *region;
 
-  itr->node_stack = _malloc(sizeof(itr->node_stack) * qt->maxdepth);
-  itr->quad_stack = _malloc(sizeof(itr->quad_stack) * qt->maxdepth);
+  itr->stack = _malloc(sizeof(itr->stack) * qt->maxdepth);
 
-  itr->sp = itr->stack;
+  itr->so = 0;
 
-  *itr->sp = qt->root;
+  itr->stack[0].node.as_node = qt->root;
+  itr->stack[0].region       = qt->region;
+  itr->stack[0].quadrant     = 0;
 
   _itr_next_recursive(itr);
 
@@ -441,11 +450,13 @@ inline Qt_Iterator *qt_query_itr(QuadTree *qt, Quadrant *region) {
 }
 
 
-inline ITEM *qt_itr_next(Qt_Iterator *itr) {
+inline Item *qt_itr_next(Qt_Iterator *itr) {
+
+  _Bool moreitems;
 
  ENTER:
 
-  _Bool moreitems = itr->stack[itr->so].node.as_leaf.n -1 >= itr->curitem;
+  moreitems = itr->stack[itr->so].node.as_leaf->n -1 >= itr->cur_item;
 
   /* Cunning use of '*' instead of '&&' to avoid a pipeline stall.
    * Note that no shortcutting is done, so the second operand to '*'
@@ -455,7 +466,7 @@ inline ITEM *qt_itr_next(Qt_Iterator *itr) {
    * a Leaf.
    */
   if ((itr->lp != NULL) * moreitems) {
-    return itr->lp->items + itr->curitem++;
+    return itr->lp->items + itr->cur_item++;
   } else if (itr->lp == NULL) {
     return NULL;
   } else {
@@ -467,10 +478,10 @@ inline ITEM *qt_itr_next(Qt_Iterator *itr) {
 }
 
 
-ITEM *_itr_next_recursive(Qt_Iterator *itr) {
+void _itr_next_recursive(Qt_Iterator *itr) {
   if (IS_LEAF(itr->quadtree, itr->stack[itr->so].node.as_node)) {
 
-    itr->curitem = 0;
+    itr->cur_item = 0;
     itr->lp = itr->stack[itr->so].node.as_node;
     return;
 
@@ -499,12 +510,12 @@ ITEM *_itr_next_recursive(Qt_Iterator *itr) {
       while (itr->stack[itr->so].quadrant < QUAD) {
 
         /* Skip empty/uninitialised quadrants */
-        if (itr->stack[itr->so].quadrants[itr->stack[itr->so].quadrant] == NULL)
-          next;
+        if (itr->stack[itr->so].node.as_inner->quadrants[itr->stack[itr->so].quadrant] == ROOT)
+          continue;
 
         rgncpy = itr->stack[itr->so].region;
 
-        _target_quadrant(itr->stack[itr->so].quadrant, rgncpy);
+        _target_quadrant(itr->stack[itr->so].quadrant, &rgncpy);
 
         if (OVERLAP(itr->region, rgncpy))
           goto OKAY;
@@ -537,8 +548,14 @@ ITEM *_itr_next_recursive(Qt_Iterator *itr) {
     assert(OVERLAP(itr->stack[itr->so].region, itr->region));
 
     itr->so++;
+
     itr->stack[itr->so].quadrant = 0;
     itr->stack[itr->so].region   = rgncpy;
+
+    itr->stack[itr->so].node.as_node = (Node *)
+      (itr->quadtree->mem.as_void +
+       itr->stack[itr->so-1].node.as_inner->quadrants[itr->stack[itr->so-1].quadrant]);
+
 
     /* Recurse.
      *
@@ -558,14 +575,14 @@ ITEM *_itr_next_recursive(Qt_Iterator *itr) {
 
 
 
-inline void _target_quadrant(Quadrants q, Quadrant *region) {
+inline void _target_quadrant(quadindex q, Quadrant *region) {
 
 
   ASSERT_REGION_SANE(region);
 
 
   FLOAT div_x, div_y;
-  CALCDIVS(div_x, div_y);
+  CALCDIVS(div_x, div_y, region);
 
 
   if (ISSOUTH(q)) {
@@ -585,3 +602,27 @@ inline void _target_quadrant(Quadrants q, Quadrant *region) {
 
 
 }
+
+Item *qt_query_ary(const QuadTree *quadtree, const Quadrant *region, u_int64_t *maxn) {
+
+  u_int64_t size = 0;
+  u_int64_t alloced = 32;
+  Item *items = _malloc(sizeof(Item) * alloced);
+
+  Qt_Iterator *itr = qt_query_itr(quadtree, region);
+
+  u_int64_t i=0;
+  while ((items[i++] = qt_itr_next(itr)) != NULL) {
+    if (i >= maxn)
+      break;
+    if (i >= alloced) {
+      alloced*= 2;
+      items = _realloc(items, alloced);
+    }
+  }
+
+  free(itr);
+
+  return items;
+}
+

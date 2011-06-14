@@ -6,7 +6,7 @@
 
 
 typedef struct QuadTree    QuadTree;
-typedef struct QT_Iterator QT_Iterator;
+typedef struct Qt_Iterator Qt_Iterator;
 
 typedef u_int64_t      ITEM;
 typedef double         FLOAT;
@@ -24,20 +24,31 @@ typedef struct {
 
 
 
+struct Item {
+
+  ITEM  value;
+  FLOAT coords[2];
+
+} __packed__;
+
+typedef struct Item Item;
+
+
+
 
 
 extern QuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill);
 
-extern void qt_insert(QuadTree *quadtree, ITEM item, FLOAT coords[2]);
-extern void qt_finalise(QuadTree *qt);
+extern void qt_insert(QuadTree *quadtree, const Item *item);
+extern void qt_finalise(QuadTree *quadtree);
 
 
 
-extern ITEM *qt_query_ary(QuadTree *quadtree, Quadrant *region, u_int64_t maxn);
+extern Item *qt_query_ary(const QuadTree *quadtree, const Quadrant *region, u_int64_t *maxn);
 
-extern QT_Iterator *qt_query_itr(QuadTree *quadtree, Quadrant *region);
+extern Qt_Iterator *qt_query_itr(const QuadTree *quadtree, const Quadrant *region);
 
-extern inline ITEM *qt_itr_next(QT_Iterator *itr);
+extern inline Item *qt_itr_next(Qt_Iterator *itr);
 
 
 typedef enum {

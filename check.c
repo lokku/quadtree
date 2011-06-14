@@ -46,7 +46,7 @@ void populate(QuadTree *qt, region *regions, short int nregions, ITEM n) {
     coords[0] = rnd();
     coords[1] = rnd();
 
-    insert(qt, i, coords);
+    qt_insert(qt, i, coords);
 
     for (j=0; j<nregions; j++) {
       if (in_region(regions+j, coords)) {
@@ -60,6 +60,10 @@ void populate(QuadTree *qt, region *regions, short int nregions, ITEM n) {
       }
     }
 
+    for (j=0; j<nregions; j++) {
+      qsort(regions[j].items, regions[j].n, sizeof(Item), (__compar_fn_t)_itemcmp);
+    }
+
   }
 }
 
@@ -71,8 +75,8 @@ void populate_regions(QuadTree *qt, region *regions, short int nregions) {
     for (j=0; j<4; j++)
       rands[j] = rnd();
 
-    qsort(rands,   4, sizeof(FLOAT), (__compar_fn_t)_FLOATcmp);
-    /*    qsort(rands+2, 2, sizeof(FLOAT), (__compar_fn_t)_FLOATcmp);*/
+    qsort(rands,   2, sizeof(FLOAT), (__compar_fn_t)_FLOATcmp);
+    qsort(rands+2, 2, sizeof(FLOAT), (__compar_fn_t)_FLOATcmp);
 
     regions[i].ne[0] = rands[1];
     regions[i].sw[0] = rands[0];
@@ -90,6 +94,16 @@ void populate_regions(QuadTree *qt, region *regions, short int nregions) {
   }
 }
 
+u_int64_t check(QuadTree *qt, const region *regions, short int nregions) {
+
+  while (--nregions >= 0) {
+    u_int64_t maxn = 0;
+    Item *items = q_query_ary(qt, regions+nregions, &maxn);
+    qsort(items, maxn, sizeof(Item), (__compar_fn_t)_itemcmp);
+  }
+
+}
+
 
 
 int main(int argc, char **argv) {
@@ -101,7 +115,7 @@ int main(int argc, char **argv) {
   quadrant.sw[X] = 0;
   quadrant.sw[Y] = 0;
 
-  QuadTree *qt = create_quadtree(&quadrant, 10);
+  QuadTree *qt = qt_create_quadtree(&quadrant, 10);
 
   short int nregions = 100;
 
@@ -111,7 +125,7 @@ int main(int argc, char **argv) {
 
   populate(qt, regions, nregions, 99999);
 
-  finalise(qt);
+  qt_finalise(qt);
 
   return 0;
 }
