@@ -88,7 +88,8 @@ inline void *_realloc(void *ptr, size_t size) {
 
 
 
-_Bool in_quadrant(Item *i, Quadrant *q) {
+
+_Bool in_quadrant(const Item *i, const Quadrant *q) {
   return ((i->coords[X] >= q->sw[X]) && (i->coords[X] <= q->ne[X]) &&
           (i->coords[Y] >= q->sw[Y]) && (i->coords[Y] <= q->ne[Y]));
 
@@ -481,11 +482,7 @@ inline Qt_Iterator *qt_query_itr(const QuadTree *qt, const Quadrant *region) {
 
 inline Item *qt_itr_next(Qt_Iterator *itr) {
 
-  _Bool moreitems;
-
  ENTER:
-
-  moreitems = itr->stack[(itr->so * !! itr->lp)].node.as_leaf->n -1 >= itr->cur_item;
 
   /* Cunning use of '*' instead of '&&' to avoid a pipeline stall.
    * Note that no shortcutting is done, so the second operand to '*'
@@ -494,17 +491,21 @@ inline Item *qt_itr_next(Qt_Iterator *itr) {
    * memory, so won't segfault even if the actual data is not really
    * a Leaf.
    */
-  if ((itr->lp != NULL) * moreitems) {
-    return &itr->lp->items[itr->cur_item++];
-  } else if (itr->lp == NULL) {
+  if (itr->lp == NULL) {
     return NULL;
   } else {
-    assert((itr->lp != NULL) && (!moreitems));
+    while (itr->stack[(itr->so * !! itr->lp)].node.as_leaf->n -1 >= itr->cur_item) {
+
+      Item *itm = &itr->lp->items[itr->cur_item++];
+      if (in_quadrant(itm, &itr->region))
+        return itm;
+    }
 
     itr->so--;
     itr->stack[itr->so].quadrant++;
     _itr_next_recursive(itr);
     goto ENTER;
+
   }
 }
 

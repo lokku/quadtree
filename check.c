@@ -31,12 +31,6 @@ inline FLOAT rnd() {
   return ((FLOAT)rand())/((FLOAT)RAND_MAX);
 }
 
-_Bool in_region(const region *r, FLOAT coords[2]) {
-  return ((coords[X] >= r->region.sw[X]) && (coords[X] <= r->region.ne[X]) &&
-          (coords[Y] >= r->region.sw[Y]) && (coords[Y] <= r->region.ne[Y]));
-
-}
-
 void populate(QuadTree *qt, region *regions, short int nregions, ITEM n) {
   ITEM i;
   short int j;
@@ -52,7 +46,7 @@ void populate(QuadTree *qt, region *regions, short int nregions, ITEM n) {
     qt_insert(qt, item);
 
     for (j=0; j<nregions; j++) {
-      if (in_region(&regions[j], item.coords)) {
+      if (in_quadrant(&item, &regions[j].region)) {
 
         /* Grow/alloc memory if needed */
         if ((regions[j].items == NULL) || (regions[j].n+1 > regions[j].maxn)) {
@@ -130,7 +124,7 @@ u_int64_t check(QuadTree *qt, const region *regions, short int nregions) {
       int j;
       u_int64_t ncorrect=0;
       for (j=0; j<maxn; j++) {
-        if (!in_region(&regions[i], items[j]->coords)) {
+        if (!in_quadrant(items[j], &regions[i].region)) {
           printf("error: { value = %ld, x = %lf, y = %lf }\n",
                items[j]->value, items[j]->coords[0], items[j]->coords[1]);
         } else {
@@ -142,7 +136,7 @@ u_int64_t check(QuadTree *qt, const region *regions, short int nregions) {
 
 
 
-      continue;
+      goto CONTINUE;
     }
 
 
@@ -152,10 +146,14 @@ u_int64_t check(QuadTree *qt, const region *regions, short int nregions) {
       if (0 != _itemcmp_direct(items[j], &regions[i].items[j])) {
         errors++;
       } else {
-        printf("correct: { value = %ld, x = %lf, y = %lf }\n",
-               items[j]->value, items[j]->coords[0], items[j]->coords[1]);
+        /*        printf("correct: { value = %ld, x = %lf, y = %lf }\n",
+                  items[j]->value, items[j]->coords[0], items[j]->coords[1]); */
       }
     }
+
+  CONTINUE:
+    free(items);
+
   }
 
   return errors;
