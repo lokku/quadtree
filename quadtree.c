@@ -358,12 +358,11 @@ void qt_finalise(QuadTree *qt) {
 
   qt->divider.as_void = (void *)&qt->mem.as_inner[qt->ninners];
 
-  qt->items.as_void   = qt->divider.as_void + sizeof(Leaf)*qt->nleafs + sizeof(Item)*qt->size;
-
   st.quadtree = qt;
   st.ninners  = 0;
   st.cur_trans        = qt->root;
   st.cur_node.as_void = qt->mem.as_void;
+  st.next_leaf        = qt->divider.as_void;
 
   _qt_finalise(&st);
 
@@ -402,7 +401,7 @@ void _qt_finalise_inner(FinaliseState *st) {
        */
       st->cur_node.as_void = st->cur_trans->is_inner ?
         (void *) &st->quadtree->mem.as_inner[st->ninners] :
-        (void *) &st->next_leaf;
+        (void *) st->next_leaf;
 
       inner->quadrants[i] = st->cur_node.as_void - st->quadtree->mem.as_void;
 
@@ -486,7 +485,7 @@ inline Item *qt_itr_next(Qt_Iterator *itr) {
 
  ENTER:
 
-  moreitems = itr->stack[itr->so].node.as_leaf->n -1 >= itr->cur_item;
+  moreitems = itr->stack[(itr->so * !! itr->lp)].node.as_leaf->n -1 >= itr->cur_item;
 
   /* Cunning use of '*' instead of '&&' to avoid a pipeline stall.
    * Note that no shortcutting is done, so the second operand to '*'
@@ -500,6 +499,8 @@ inline Item *qt_itr_next(Qt_Iterator *itr) {
   } else if (itr->lp == NULL) {
     return NULL;
   } else {
+    assert((itr->lp != NULL) && (!moreitems));
+
     itr->so--;
     itr->stack[itr->so].quadrant++;
     _itr_next_recursive(itr);
@@ -540,11 +541,11 @@ void _itr_next_recursive(Qt_Iterator *itr) {
       assert(IS_INNER(itr->quadtree, itr->stack[itr->so].node.as_node));
 
       /* Loop through each quadrant */
-      while (itr->stack[itr->so].quadrant < QUAD) {
+      while (itr->stack[itr->so].quadrant != QUAD) {
 
         /* Skip empty/uninitialised quadrants */
         if (itr->stack[itr->so].node.as_inner->quadrants[itr->stack[itr->so].quadrant] == ROOT)
-          continue;
+          goto CONTINUE;
 
         rgncpy = itr->stack[itr->so].region;
 
@@ -553,6 +554,8 @@ void _itr_next_recursive(Qt_Iterator *itr) {
         if (OVERLAP(itr->region, rgncpy))
           goto RECURSE;
 
+      CONTINUE:
+
         /* Skip to the next quadrant */
         itr->stack[itr->so].quadrant++;
 
@@ -560,6 +563,10 @@ void _itr_next_recursive(Qt_Iterator *itr) {
 
       /* No quadrants on this node remaining --- backtrack one node */
       --itr->so;
+
+      if (itr->so >= 0)
+        itr->stack[itr->so].quadrant++;
+
 
     }
 
@@ -651,7 +658,16 @@ Item **qt_query_ary(const QuadTree *quadtree, const Quadrant *region, u_int64_t 
       alloced*= 2;
       items = _realloc(items, sizeof(*items) * alloced);
     }
+    /*    printf("item[%ld] = { value = %ld, x = %lf, y = %lf }\n",
+           i, items[i]->value, items[i]->coords[0], items[i]->coords[1]);
+           printf("itr->curitem: %ld\n", itr->cur_item);
+    int j;
+    for (j=0; j<itr->so; j++) printf(" %d", itr->stack[j].quadrant);
+    printf("\n");
+    */
   }
+
+  /*  printf("\n\n\n-----------------\n\n\n"); */
 
   *maxn = i;
 
