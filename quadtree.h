@@ -45,6 +45,7 @@ extern void qt_finalise(QuadTree *quadtree);
 
 
 extern Item **qt_query_ary(const QuadTree *quadtree, const Quadrant *region, u_int64_t *maxn);
+extern Item **qt_query_ary_fast(const QuadTree *quadtree, const Quadrant *region, u_int64_t *maxn);
 
 extern Qt_Iterator *qt_query_itr(const QuadTree *quadtree, const Quadrant *region);
 

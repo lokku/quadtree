@@ -593,6 +593,10 @@ void _itr_next_recursive(Qt_Iterator *itr) {
     itr->stack[itr->so].quadrant = 0;
     itr->stack[itr->so].region   = rgncpy;
 
+    itr->stack[itr->so].within_parent =
+      CONTAINED(rgncpy, itr->region);
+
+
     itr->stack[itr->so].node.as_node = (Node *)
       (itr->quadtree->mem.as_void +
        itr->stack[itr->so-1].node.as_inner->quadrants[itr->stack[itr->so-1].quadrant]);
@@ -677,3 +681,82 @@ Item **qt_query_ary(const QuadTree *quadtree, const Quadrant *region, u_int64_t 
   return items;
 }
 
+
+
+Item **qt_query_ary_fast(const QuadTree *quadtree, const Quadrant *region, u_int64_t *maxn) {
+
+  u_int64_t alloced = 256;
+  Item **items = _malloc(sizeof(*items) * alloced);
+
+  Qt_Iterator *itr = qt_query_itr(quadtree, region);
+
+  u_int64_t i=0;
+
+  while (itr->lp != NULL) {
+
+    if ((*maxn != 0) && (i >= *maxn)) break;
+
+    _include_leaf(&items, &i, &alloced, itr->lp, &itr->region, itr->stack[itr->so].within_parent);
+
+    itr->so--;
+    itr->stack[itr->so].quadrant++;
+    _itr_next_recursive(itr);
+
+  }
+
+  *maxn = i;
+
+  free(itr);
+
+  return items;
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+ * Note: offset is the position at which we can start storing items
+ * (i.e., *items+offset must not already contain an item).
+ */
+inline void _include_leaf(Item ***items, u_int64_t *offset, u_int64_t *size, Leaf *leaf, Quadrant *quadrant, _Bool within) {
+
+  assert(leaf != NULL);
+
+  u_int32_t i;
+
+  /* Do _not_ put this inside the for() loop to try and save memory! */
+  u_int64_t required = *offset + leaf->n;  /* _not_ +1 */
+
+  if (required > *size) {
+    *size = required * 2;
+    *items = (Item **)realloc(*items, sizeof(Item *) * *size);
+  }
+
+  if (within) {
+
+    /* It would be so cool to bypass the L2 cache right now, writing direct to memory */
+    for (i=0; i<leaf->n; i++)
+      (*items)[*offset + i] = &leaf->items[i];
+
+  } else {
+
+    u_int32_t j;
+    for (i=0,j=0; j<leaf->n; j++) {
+      /* Cleverly avoiding an IF :-) */
+      (*items)[*offset + i] = &leaf->items[j];
+      i += in_quadrant(&leaf->items[j], quadrant);
+    }
+  }
+
+  *offset+= i;
+
+}

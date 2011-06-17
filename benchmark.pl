@@ -28,6 +28,17 @@ sub benchmark {
 }
 
 
+
+my $n_points  = 1_000_000;
+my $n_splits  = 5;
+my $n_tests   = 1_000;
+my $n_buckets = 200;
+
+my $init_radius = 1/32;
+
+
+
+
 my $idx = Algorithm::SpatialIndex->new(
     strategy    => 'QuadTree',
     storage     => 'Memory',
@@ -35,15 +46,8 @@ my $idx = Algorithm::SpatialIndex->new(
     limit_x_up  => 1,
     limit_y_low => 0,
     limit_y_up  => 1,
-    bucket_size => 100,
+    bucket_size => $n_buckets,
 );
-
-
-my $n_points = 4_000_000;
-my $n_splits = 5;
-my $n_tests  = 1_000;
-
-my $init_radius = 1/32;
 
 
 

@@ -53,7 +53,7 @@ void benchmark(QuadTree *qt, int n, FLOAT radius) {
     region.sw[Y] = 1/2 - radius;
 
     /* Query quadtree */
-    Item **items = qt_query_ary(qt, &region, &maxn);
+    Item **items = qt_query_ary_fast(qt, &region, &maxn);
 
     free(items);
 
@@ -67,9 +67,10 @@ void benchmark(QuadTree *qt, int n, FLOAT radius) {
 int main(int argc, char **argv) {
 
 
-  int n_points = 4*M;
-  int n_splits = 5;
-  int n_tests  = 1*K;
+  int n_points  = 1*M;
+  int n_splits  = 5;
+  int n_tests   = 1*K;
+  int n_buckets = 200;
 
   FLOAT init_radius = 1/32;
 
@@ -82,7 +83,7 @@ int main(int argc, char **argv) {
   quadrant.sw[X] = 0;
   quadrant.sw[Y] = 0;
 
-  QuadTree *qt = qt_create_quadtree(&quadrant, 10);
+  QuadTree *qt = qt_create_quadtree(&quadrant, n_buckets);
 
   populate(qt, n_points);
 

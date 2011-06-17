@@ -111,7 +111,7 @@ u_int64_t check(QuadTree *qt, const region *regions, short int nregions) {
     u_int64_t maxn = 0;
 
     /* Query quadtree */
-    Item **items = qt_query_ary(qt, &regions[i].region, &maxn);
+    Item **items = qt_query_ary_fast(qt, &regions[i].region, &maxn);
 
     /* Sort results so comparable with those in regions[i] */
     qsort(items, maxn, sizeof(Item *), (__compar_fn_t)_itemcmp);

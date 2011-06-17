@@ -5,7 +5,12 @@ CFLAGS=-Wall -g -O0
 all: check quadtree.o benchmark
 
 prod:
-	make CFLAGS=-DNDEBUG
+	make clean
+	make CFLAGS="-DNDEBUG -O3"
+
+prof:
+	make clean
+	make CFLAGS="-DNDEBUG -pg" LDFLAGS="-pg"
 
 check: check.o quadtree.o
 
