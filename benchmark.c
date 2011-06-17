@@ -11,7 +11,7 @@
 #include "quadtree_private.h"
 
 
-#define M 1000000
+#define M (K*K)
 #define K 1000
 
 
@@ -67,12 +67,12 @@ void benchmark(QuadTree *qt, int n, FLOAT radius) {
 int main(int argc, char **argv) {
 
 
-  int n_points  = 1*M;
-  int n_splits  = 5;
-  int n_tests   = 1*K;
+  int n_points  = M/2;
+  int n_splits  = 2;
+  int n_tests   = M;
   int n_buckets = 200;
 
-  FLOAT init_radius = 1/32;
+  FLOAT init_radius = 1/64;
 
 
 

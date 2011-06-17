@@ -29,12 +29,12 @@ sub benchmark {
 
 
 
-my $n_points  = 1_000_000;
-my $n_splits  = 5;
-my $n_tests   = 1_000;
+my $n_points  = 500_000;
+my $n_splits  = 2;
+my $n_tests   = 1_000_000;
 my $n_buckets = 200;
 
-my $init_radius = 1/32;
+my $init_radius = 1/64;
 
 
 
