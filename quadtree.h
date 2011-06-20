@@ -40,6 +40,7 @@ typedef struct Item Item;
 
 
 extern QuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill);
+extern void qt_free(QuadTree *quadtree);
 
 extern void qt_insert(QuadTree *quadtree, Item item);
 extern void qt_finalise(QuadTree *quadtree);

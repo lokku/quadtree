@@ -72,6 +72,13 @@ void populate(QuadTree *qt, region *regions, short int nregions, ITEM n) {
 
 }
 
+void free_regions(region *regions, short int nregions) {
+  short int i;
+  for (i=0; i<nregions; i++)
+    free(regions[i].items);
+  free(regions);
+}
+
 void populate_regions(QuadTree *qt, region *regions, short int nregions) {
   int i,j;
   for (i=0; i<nregions; i++) {
@@ -184,6 +191,9 @@ int main(int argc, char **argv) {
   qt_finalise(qt);
 
   u_int64_t errors = check(qt, regions, nregions);
+
+  qt_free(qt);
+  free_regions(regions, nregions);
 
 #ifndef NDEBUG
   printf("withins: %ld, nwithins: %ld\n", withins, nwithins);

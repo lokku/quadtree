@@ -55,6 +55,16 @@ inline void _nullify_quadrants(TransNode **quadrants) {
 
 
 inline void *_malloc(size_t size) {
+  void *ptr;
+  int err;
+  if (err = posix_memalign(&ptr, getpagesize(), size)) {
+    fprintf(stderr, "malloc: couldn't allocate %ld bytes", size);
+    perror("posix_memalign");
+  }
+  return ptr;
+}
+
+inline void *_malloc_fast(size_t size) {
   void *ptr = malloc(size);
   if (ptr == NULL) {
     fprintf(stderr, "malloc: couldn't allocate %ld bytes", size);
@@ -102,7 +112,7 @@ _Bool in_quadrant(const Item *i, const Quadrant *q) {
 
 QuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill) {
 
-  QuadTree *qt = (QuadTree *)_malloc(sizeof(QuadTree));
+  QuadTree *qt = (QuadTree *)_malloc_fast(sizeof(QuadTree));
 
   qt->region = *region;
 
@@ -122,9 +132,14 @@ QuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill) {
   return qt;
 }
 
+void qt_free(QuadTree *qt) {
+  free(qt->mem.as_void);
+  free(qt);
+}
+
 
 void _init_root(QuadTree *qt) {
-  TransNode *root = _malloc(sizeof(TransNode));
+  TransNode *root = _malloc_fast(sizeof(TransNode));
 
   root->is_inner = 1;
 
@@ -147,7 +162,7 @@ void qt_insert(QuadTree *qt, Item item) {
   qt->size++;
 
 
-  Item *itmcpy = _malloc(sizeof(Item));
+  Item *itmcpy = _malloc_fast(sizeof(Item));
 
   *itmcpy = item;
 
@@ -266,7 +281,7 @@ inline int _count_distinct_items(TransNode *node) {
 inline void _init_leaf_node(QuadTree *qt, TransNode *node) {
   node->is_inner = 0;
   node->leaf.size = qt->maxfill;
-  node->leaf.items = _malloc(sizeof(Item *) * node->leaf.size);
+  node->leaf.items = _malloc_fast(sizeof(Item *) * node->leaf.size);
   node->leaf.n = 0;
   qt->nleafs++;
 }
@@ -276,7 +291,7 @@ inline void _ensure_child_quad(QuadTree *qt, TransNode *node, quadindex quad, It
   assert(node->is_inner);
 
   if (node->quadrants[quad] == NULL) {
-    node->quadrants[quad] = (TransNode *)_malloc(sizeof(TransNode));
+    node->quadrants[quad] = (TransNode *)_malloc_fast(sizeof(TransNode));
     _init_leaf_node(qt, node->quadrants[quad]);
   }
 }
@@ -462,12 +477,12 @@ inline void _qt_finalise(FinaliseState *st) {
 
 inline Qt_Iterator *qt_query_itr(const QuadTree *qt, const Quadrant *region) {
 
-  Qt_Iterator *itr = (Qt_Iterator *)_malloc(sizeof(Qt_Iterator));
+  Qt_Iterator *itr = (Qt_Iterator *)_malloc(sizeof(Qt_Iterator) + sizeof(*itr->stack)*qt->maxdepth);
 
   itr->quadtree = qt;
   itr->region = *region;
 
-  itr->stack = _malloc(sizeof(*itr->stack) * qt->maxdepth);
+  itr->stack = ((void *)itr)+sizeof(Qt_Iterator);
 
   itr->so = 0;
 
@@ -494,6 +509,7 @@ inline Item *qt_itr_next(Qt_Iterator *itr) {
    * a Leaf.
    */
   if (itr->lp == NULL) {
+    _free_itr(itr);
     return NULL;
   } else {
     while (itr->stack[(itr->so * !! itr->lp)].node.as_leaf->n -1 >= itr->cur_item) {
@@ -678,7 +694,7 @@ Item **qt_query_ary(const QuadTree *quadtree, const Quadrant *region, u_int64_t 
 
   *maxn = i;
 
-  free(itr);
+  _free_itr(itr);
 
   return items;
 }
@@ -687,8 +703,8 @@ Item **qt_query_ary(const QuadTree *quadtree, const Quadrant *region, u_int64_t 
 
 Item **qt_query_ary_fast(const QuadTree *quadtree, const Quadrant *region, u_int64_t *maxn) {
 
-  u_int64_t alloced = 256;
-  Item **items = _malloc(sizeof(*items) * alloced);
+  u_int64_t alloced = 4096 / sizeof(Item *);
+  Item **items = _malloc_fast(sizeof(*items) * alloced);
 
   Qt_Iterator *itr = qt_query_itr(quadtree, region);
 
@@ -774,4 +790,10 @@ inline void _include_leaf(Item ***items, u_int64_t *offset, u_int64_t *size, Lea
 
   *offset+= i;
 
+}
+
+
+void _free_itr(Qt_Iterator *itr) {
+  free(itr->stack);
+  free(itr);
 }
