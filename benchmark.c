@@ -35,12 +35,12 @@ void populate(QuadTree *qt, u_int64_t n) {
 }
 
 
-void benchmark(QuadTree *qt, int n, FLOAT radius) {
+void benchmark(QuadTree *qt, int n, FLOAT radius, u_int64_t *total) {
 
   Quadrant region;
 
   int i;
-  for (i=0; i<n; i++) {
+  for (i=0; i<=n; i++) {
 
 
     u_int64_t maxn = 0;
@@ -54,6 +54,8 @@ void benchmark(QuadTree *qt, int n, FLOAT radius) {
 
     /* Query quadtree */
     Item **items = qt_query_ary_fast(qt, &region, &maxn);
+
+    *total+= maxn;
 
     free(items);
 
@@ -72,7 +74,7 @@ int main(int argc, char **argv) {
   int n_tests   = M;
   int n_buckets = 200;
 
-  FLOAT init_radius = 1/64;
+  FLOAT init_radius = 1.0/64.0;
 
 
 
@@ -93,15 +95,21 @@ int main(int argc, char **argv) {
   clock_t start, end;
   double elapsed;
 
+  u_int64_t total = 0;
+
   start = clock();
   int i;
   for (i=0; i<n_tests; i++) {
-    benchmark(qt, n_splits, init_radius);
+    benchmark(qt, n_splits, init_radius, &total);
   }
   end = clock();
   elapsed = ((double) (end - start)) / CLOCKS_PER_SEC;
 
-  printf("elapsed: %lf\n", elapsed);
+  printf("elapsed: %lf; total: %ld\n", elapsed, total);
+
+#ifndef NDEBUG
+  printf("withins: %ld, nwithins: %ld\n", withins, nwithins);
+#endif
 
   return 0;
 }

@@ -19,4 +19,4 @@ benchmark: benchmark.o quadtree.o
 quadtree.o: quadtree.c quadtree.h quadtree_private.h
 
 clean:
-	rm *.o check
+	rm *.o check benchmark &>/dev/null || :

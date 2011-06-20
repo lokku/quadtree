@@ -20,7 +20,8 @@
 
 
 
-
+unsigned long int withins  = 0;
+unsigned long int nwithins = 0;
 
 
 
@@ -289,7 +290,7 @@ inline void _ensure_bucket_size(QuadTree *qt, TransNode *node, const Quadrant *q
 
   assert(!node->is_inner);
 
-  if (node->leaf.n+1 >= node->leaf.size) {
+  if (node->leaf.n+1 > node->leaf.size) {
     _split_node(qt, node, quadrant, depth);
   }
 
@@ -470,9 +471,10 @@ inline Qt_Iterator *qt_query_itr(const QuadTree *qt, const Quadrant *region) {
 
   itr->so = 0;
 
-  itr->stack[0].node.as_node = qt->root;
-  itr->stack[0].region       = qt->region;
-  itr->stack[0].quadrant     = 0;
+  itr->stack[0].node.as_node  = qt->root;
+  itr->stack[0].region        = qt->region;
+  itr->stack[0].quadrant      = 0;
+  itr->stack[0].within_parent = 0;
 
   _itr_next_recursive(itr);
 
@@ -594,7 +596,7 @@ void _itr_next_recursive(Qt_Iterator *itr) {
     itr->stack[itr->so].region   = rgncpy;
 
     itr->stack[itr->so].within_parent =
-      CONTAINED(rgncpy, itr->region);
+      itr->stack[itr->so-1].within_parent || CONTAINED(rgncpy, itr->region);
 
 
     itr->stack[itr->so].node.as_node = (Node *)
@@ -741,19 +743,32 @@ inline void _include_leaf(Item ***items, u_int64_t *offset, u_int64_t *size, Lea
     *items = (Item **)realloc(*items, sizeof(Item *) * *size);
   }
 
+  Item  *const addr   = leaf->items;
+  Item **const itemsv = *items;
+  u_int64_t offsetv = *offset;
+
   if (within) {
+
+#ifndef NDEBUG
+    withins++;
+#endif
+
 
     /* It would be so cool to bypass the L2 cache right now, writing direct to memory */
     for (i=0; i<leaf->n; i++)
-      (*items)[*offset + i] = &leaf->items[i];
+      itemsv[offsetv + i] = addr+i;
+
 
   } else {
 
-    u_int32_t j;
-    for (i=0,j=0; j<leaf->n; j++) {
-      /* Cleverly avoiding an IF :-) */
-      (*items)[*offset + i] = &leaf->items[j];
-      i += in_quadrant(&leaf->items[j], quadrant);
+#ifndef NDEBUG
+    nwithins++;
+#endif
+
+    u_int64_t j;
+    for (i=0, j=0; j<leaf->n; j++) {
+      if (in_quadrant(addr+j, quadrant))
+        itemsv[offsetv + i++] = addr+j;
     }
   }
 

@@ -13,7 +13,7 @@ sub benchmark {
 
     my ($idx, $n, $radius) = @_;
 
-    for (1..$n) {
+    for (0..$n) {
 
         my $x0 = 1/2 - $radius;
         my $x1 = 1/2 + $radius;

@@ -13,8 +13,10 @@ typedef double         FLOAT;
 typedef unsigned int   BUCKETSIZE;
 
 
-
-
+#ifndef NDEBUG
+unsigned long int withins;
+unsigned long int nwithins;
+#endif
 
 
 typedef struct {
@@ -24,12 +26,12 @@ typedef struct {
 
 
 
-struct Item {
+struct __attribute__ ((__packed__)) Item {
 
   ITEM  value;
   FLOAT coords[2];
 
-} __packed__;
+};
 
 typedef struct Item Item;
 

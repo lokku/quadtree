@@ -171,7 +171,7 @@ int main(int argc, char **argv) {
   quadrant.sw[X] = 0;
   quadrant.sw[Y] = 0;
 
-  QuadTree *qt = qt_create_quadtree(&quadrant, 10);
+  QuadTree *qt = qt_create_quadtree(&quadrant, 1);
 
   short int nregions = 100;
 
@@ -184,6 +184,10 @@ int main(int argc, char **argv) {
   qt_finalise(qt);
 
   u_int64_t errors = check(qt, regions, nregions);
+
+#ifndef NDEBUG
+  printf("withins: %ld, nwithins: %ld\n", withins, nwithins);
+#endif
 
   if (errors) {
     printf("errors: %ld\n", errors);
