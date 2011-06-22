@@ -128,7 +128,6 @@ QuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill) {
 
   qt->mem            = NULL;
   qt->inners.as_void = NULL;
-  qt->leafs          = NULL;
 
   qt->maxdepth = 0;
   qt->maxfill  = maxfill;
@@ -382,13 +381,7 @@ u_int64_t _mem_size(const QuadTree *qt) {
     sizeof(Item)*qt->size;
 }
 
-void *_mem_inners(const QuadTree *qt) {
-  return qt->mem+sizeof(QuadTree);
-}
 
-void *_mem_leafs(const QuadTree *qt) {
-  return _mem_inners(qt) + qt->ninners*sizeof(Inner);
-}
 
 
 void qt_finalise(QuadTree *qt, const char *file) {
@@ -403,14 +396,13 @@ void qt_finalise(QuadTree *qt, const char *file) {
   u_int64_t bytes = _mem_size(qt);
 
   qt->mem            = _malloc(bytes);
-  qt->inners.as_void = _mem_inners(qt);
-  qt->leafs          = _mem_leafs(qt);
+  qt->inners.as_void = MEM_INNERS(qt);
 
   st.quadtree = qt;
   st.ninners  = 0;
   st.cur_trans        = qt->root;
   st.cur_node.as_void = qt->inners.as_void;
-  st.next_leaf        = qt->leafs;
+  st.next_leaf        = MEM_LEAFS(qt);
 
   _qt_finalise(&st);
 
@@ -951,8 +943,7 @@ extern QuadTree *qt_load(const char *file) {
   qt = (QuadTree *) mem;
 
   qt->mem            = mem;
-  qt->inners.as_void = _mem_inners(qt);
-  qt->leafs          = _mem_leafs(qt);
+  qt->inners.as_void = MEM_INNERS(qt);
   qt->root           = qt->inners.as_void;
 
   return qt;

@@ -100,13 +100,6 @@ struct __attribute__ ((__packed__)) QuadTree {
     Inner *as_inners;
   } inners;
 
-  /* leafs: memory addresses to within *mem that are less than
-            $leafs are considered inner nodes, otherwise they're
-            considered leaf nodes. Since we have $ninners, $leafs
-            is actually redundant, but it's kept because I like it.
-  */
-  void *leafs;
-
   /* Primarily so that we know whether to free() or munmap() memory,
    * but some folk enjoy closing file descriptors when their programs
    * exit. Defaults to -1
@@ -219,12 +212,7 @@ void  _init_root(QuadTree *qt);
 void  _itr_next_recursive(Qt_Iterator *itr);
 void  _free_itr(Qt_Iterator *itr);
 void _read_mem(void *mem, int fd, u_int64_t bytes);
-u_int64_t _memsize(QuadTree *qt);
-
-
 u_int64_t _mem_size(const QuadTree *qt);
-void *_mem_inners(const QuadTree *qt);
-void *_mem_divider(const QuadTree *qt);
 
 
 
@@ -291,10 +279,15 @@ void *_mem_divider(const QuadTree *qt);
 
 
 #define IS_LEAF(quadtree, node)  \
-  ((node) >= (quadtree)->leafs)
+  ((node) >= MEM_LEAFS(quadtree))
 
 #define IS_INNER(quadtree, node) \
-  ((node) < (quadtree)->leafs)
+  !IS_LEAF(quadtree, node)
+
+
+
+#define MEM_INNERS(quadtree) ((quadtree)->mem+sizeof(QuadTree))
+#define MEM_LEAFS(quadtree)  (MEM_INNERS(quadtree) + (quadtree)->ninners*sizeof(Inner))
 
 
 
