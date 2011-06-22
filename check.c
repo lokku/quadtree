@@ -31,7 +31,7 @@ inline FLOAT rnd() {
   return ((FLOAT)rand())/((FLOAT)RAND_MAX);
 }
 
-void populate(QuadTree *qt, region *regions, short int nregions, ITEM n) {
+void populate(UFQuadTree *qt, region *regions, short int nregions, ITEM n) {
   ITEM i;
   short int j;
   for (i=0; i<n; i++) {
@@ -79,7 +79,7 @@ void free_regions(region *regions, short int nregions) {
   free(regions);
 }
 
-void populate_regions(QuadTree *qt, region *regions, short int nregions) {
+void populate_regions(UFQuadTree *qt, region *regions, short int nregions) {
   int i,j;
   for (i=0; i<nregions; i++) {
 
@@ -182,24 +182,23 @@ int main(int argc, char **argv) {
   quadrant.sw[X] = 0;
   quadrant.sw[Y] = 0;
 
-  QuadTree *qt = qt_create_quadtree(&quadrant, 1);
+  UFQuadTree *ufqt = qt_create_quadtree(&quadrant, 1);
 
   short int nregions = 100;
 
   region *regions = malloc(sizeof(region) * nregions);
 
-  populate_regions(qt, regions, nregions);
+  populate_regions(ufqt, regions, nregions);
 
-  populate(qt, regions, nregions, 99999);
+  populate(ufqt, regions, nregions, 99999);
 
-  QuadTree *qt_ = qt_finalise(qt, "_check.dat");
-  qt_free(qt);
-  qt = qt_;
+  QuadTree *qt = qt_finalise(ufqt, "_check.dat");
+  qtuf_free(ufqt);
 
   errors += check(qt, regions, nregions);
 
   printf("%ld errors\n", errors);
-  printf("fd_free()ing and fd_load()ing...\n");
+  printf("qt_free()ing and qt_load()ing...\n");
 
   qt_free(qt);
 

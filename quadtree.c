@@ -118,9 +118,9 @@ _Bool in_quadrant(const Item *i, const Quadrant *q) {
 
 
 
-QuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill) {
+UFQuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill) {
 
-  QuadTree *qt = (QuadTree *)_malloc_fast(sizeof(QuadTree));
+  UFQuadTree *qt = (UFQuadTree *)_malloc_fast(sizeof(UFQuadTree));
 
   qt->region   = *region;
 
@@ -132,9 +132,6 @@ QuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill) {
   qt->ninners  = 1;
   qt->nleafs   = 0;
 
-  qt->fd       = -1;
-  qt->padding  = 0;
-
   _init_root(qt);
 
   return qt;
@@ -145,21 +142,23 @@ void qt_free(QuadTree *qt) {
 }
 
 
-void _init_root(QuadTree *qt) {
-  TransNode *root = _malloc_fast(sizeof(TransNode));
+void qtuf_free(UFQuadTree *qt) {
+  free(qt);
+}
 
-  root->is_inner = 1;
+void _init_root(UFQuadTree *qt) {
+  qt->root = _malloc_fast(sizeof(TransNode));
 
-  _nullify_quadrants(root->quadrants);
+  qt->root->is_inner = 1;
 
-  qt->root = (Node *)root;
+  _nullify_quadrants(qt->root->quadrants);
 
   assert(qt->ninners == 1);
 }
 
 
 
-void qt_insert(QuadTree *qt, const Item *item) {
+void qt_insert(UFQuadTree *qt, const Item *item) {
 
   qt->size++;
 
@@ -170,14 +169,14 @@ void qt_insert(QuadTree *qt, const Item *item) {
 
   Quadrant quadrant = qt->region;
 
-  _qt_insert(qt, (TransNode *)qt->root, itmcpy, &quadrant, 0);
+  _qt_insert(qt, qt->root, itmcpy, &quadrant, 0);
 
 }
 
 
 /* Note: *quadrant _is_ modified, but after _insert returns, it is no longer needed
  * (i.e., it's safe to use the address of an auto variable */
-void _qt_insert(QuadTree *qt, TransNode *node, Item *item, Quadrant *q, unsigned int depth) {
+void _qt_insert(UFQuadTree *qt, TransNode *node, Item *item, Quadrant *q, unsigned int depth) {
 
   if (++depth > qt->maxdepth)
     qt->maxdepth = depth;
@@ -280,7 +279,7 @@ inline int _count_distinct_items(TransNode *node) {
 }
 
 
-inline void _init_leaf_node(QuadTree *qt, TransNode *node) {
+inline void _init_leaf_node(UFQuadTree *qt, TransNode *node) {
   node->is_inner = 0;
   node->leaf.size = qt->maxfill;
   node->leaf.items = _malloc_fast(sizeof(Item *) * node->leaf.size);
@@ -288,7 +287,7 @@ inline void _init_leaf_node(QuadTree *qt, TransNode *node) {
   qt->nleafs++;
 }
 
-inline void _ensure_child_quad(QuadTree *qt, TransNode *node, quadindex quad, Item *item) {
+inline void _ensure_child_quad(UFQuadTree *qt, TransNode *node, quadindex quad, Item *item) {
 
   assert(node->is_inner);
 
@@ -306,7 +305,7 @@ inline void _ensure_child_quad(QuadTree *qt, TransNode *node, quadindex quad, It
  * it may be an inner node when the function terminates (i.e., the node's
  * type may change as a side effect of this function).
  */
-inline void _ensure_bucket_size(QuadTree *qt, TransNode *node, const Quadrant *quadrant, unsigned int depth) {
+inline void _ensure_bucket_size(UFQuadTree *qt, TransNode *node, const Quadrant *quadrant, unsigned int depth) {
 
   assert(!node->is_inner);
 
@@ -325,7 +324,7 @@ inline void _ensure_bucket_size(QuadTree *qt, TransNode *node, const Quadrant *q
 }
 
 
-void _split_node(QuadTree *qt, TransNode *node, const Quadrant *quadrant, unsigned int depth) {
+void _split_node(UFQuadTree *qt, TransNode *node, const Quadrant *quadrant, unsigned int depth) {
 
   assert(!node->is_inner);
 
@@ -362,7 +361,7 @@ void _split_node(QuadTree *qt, TransNode *node, const Quadrant *quadrant, unsign
 
 
 
-u_int64_t _mem_size(const QuadTree *qt) {
+u_int64_t _mem_size(const UFQuadTree *qt) {
   return
     sizeof(QuadTree) +
     sizeof(Inner)*qt->ninners +
@@ -371,9 +370,18 @@ u_int64_t _mem_size(const QuadTree *qt) {
 }
 
 
+void _init_quadtree(QuadTree *new, const UFQuadTree *from) {
+  new->region   = from->region;
+  new->size     = from->size;
+  new->maxdepth = from->maxdepth;
+  new->ninners  = from->ninners;
+  new->nleafs   = from->nleafs;
+  new->padding  = 0;
+}
 
 
-QuadTree *qt_finalise(const QuadTree *qt_, const char *file) {
+
+QuadTree *qt_finalise(const UFQuadTree *qt_, const char *file) {
 
   QuadTree *qt;
   FinaliseState st;
@@ -383,17 +391,16 @@ QuadTree *qt_finalise(const QuadTree *qt_, const char *file) {
   void *mem = _malloc(bytes);
 
   qt  = (QuadTree *)mem;
-  *qt = *qt_;
+
+  _init_quadtree(qt, qt_);
 
   st.quadtree = qt;
   st.ninners  = 0;
-  st.cur_trans        = qt->root;
+  st.cur_trans        = qt_->root;
   st.cur_node.as_void = MEM_INNERS(qt);
   st.next_leaf        = MEM_LEAFS(qt);
 
   _qt_finalise(&st);
-
-  qt->root = MEM_INNERS(qt);
 
   if (file != NULL) {
 
@@ -520,7 +527,7 @@ inline Qt_Iterator *qt_query_itr(const QuadTree *qt, const Quadrant *region) {
 
   itr->so = 0;
 
-  itr->stack[0].node.as_node  = qt->root;
+  itr->stack[0].node.as_node  = MEM_ROOT(qt);
   itr->stack[0].region        = qt->region;
   itr->stack[0].quadrant      = 0;
   itr->stack[0].within_parent = 0;
@@ -928,8 +935,6 @@ extern QuadTree *qt_load(const char *file) {
   close(fd);
 
   qt = (QuadTree *) mem;
-
-  qt->root = MEM_INNERS(qt);
 
   return qt;
 }

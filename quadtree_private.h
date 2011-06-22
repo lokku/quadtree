@@ -25,6 +25,7 @@ typedef struct _Qt_Itr_Frame    Qt_Itr_Frame;
 
 
 
+
 /*
  * Note that both Inner and Leaf are __packed__ for portability.
  * (see: http://gcc.gnu.org/onlinedocs/gcc/Type-Attributes.html)
@@ -79,23 +80,30 @@ struct _TransNode {
 
 
 
-struct __attribute__ ((__packed__)) QuadTree {
+struct UFQuadTree {
 
-  Node *root;
+  TransNode *root;
 
   Quadrant region;
 
   u_int64_t size;
 
-  /* Primarily so that we know whether to free() or munmap() memory,
-   * but some folk enjoy closing file descriptors when their programs
-   * exit. Defaults to -1
-   */
-  int32_t fd; /**** TRASH THIS *****/
-  u_int32_t padding;
-
   u_int32_t maxdepth;
   u_int32_t maxfill;
+
+  u_int64_t ninners;
+  u_int64_t nleafs;
+
+};
+
+struct __attribute__ ((__packed__)) QuadTree {
+
+  Quadrant region;
+
+  u_int64_t size;
+
+  u_int32_t maxdepth;
+  u_int32_t padding;
 
   u_int64_t ninners;
   u_int64_t nleafs;
@@ -180,8 +188,8 @@ struct _FinaliseState {
 };
 
 
-inline void _ensure_child_quad(QuadTree *qt, TransNode *node, quadindex quad, Item *item);
-inline void _ensure_bucket_size(QuadTree *qt, TransNode *node, const Quadrant *quadrant, unsigned int depth);
+inline void _ensure_child_quad(UFQuadTree *qt, TransNode *node, quadindex quad, Item *item);
+inline void _ensure_bucket_size(UFQuadTree *qt, TransNode *node, const Quadrant *quadrant, unsigned int depth);
 inline int _FLOATcmp(FLOAT *a, FLOAT *b);
 inline int _count_distinct_items(TransNode *node);
 inline void _finalise(FinaliseState *st);
@@ -191,15 +199,17 @@ inline void _qt_finalise(FinaliseState *st);
 inline void _include_leaf(Item ***items, u_int64_t *offset, u_int64_t *size, Leaf *leaf, Quadrant *region,_Bool within);
 
 
-void  _qt_insert(QuadTree *qt, TransNode *node, Item *item, Quadrant *quadrant, unsigned int depth);
+void  _qt_insert(UFQuadTree *qt, TransNode *node, Item *item, Quadrant *quadrant, unsigned int depth);
 int   _itemcmp(Item **a, Item **b);
 int   _itemcmp_direct(Item *a, Item *b);
-void  _split_node(QuadTree *qt, TransNode *node, const Quadrant *quadrant, unsigned int depth);
-void  _init_root(QuadTree *qt);
+void  _split_node(UFQuadTree *qt, TransNode *node, const Quadrant *quadrant, unsigned int depth);
+void  _init_root(UFQuadTree *qt);
 void  _itr_next_recursive(Qt_Iterator *itr);
 void  _free_itr(Qt_Iterator *itr);
+void  _mk_quadtree(QuadTree *new, const UFQuadTree *from);
 void _read_mem(void *mem, int fd, u_int64_t bytes);
-u_int64_t _mem_size(const QuadTree *qt);
+u_int64_t _mem_size(const UFQuadTree *qt);
+
 
 
 
@@ -283,6 +293,8 @@ u_int64_t _mem_size(const QuadTree *qt);
 
 
 
+
+#define MEM_ROOT(quadtree) MEM_INNERS(quadtree)
 
 #define ROOT ((u_int64_t)0)
 

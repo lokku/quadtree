@@ -5,7 +5,9 @@
 #include <sys/types.h>
 
 
-typedef struct QuadTree    QuadTree;
+/* UnFinalisedQuadTree */
+typedef struct UFQuadTree UFQuadTree;
+typedef struct QuadTree   QuadTree;
 typedef struct Qt_Iterator Qt_Iterator;
 
 typedef u_int64_t      ITEM;
@@ -39,12 +41,13 @@ typedef struct Item Item;
 
 
 
-extern QuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill);
+extern UFQuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill);
 extern void qt_free(QuadTree *quadtree);
+extern void qtuf_free(UFQuadTree *quadtree);
 
 /* qt_insert: item can be free()d immediately after qt_insert */
-extern void qt_insert(QuadTree *quadtree, const Item *item);
-extern QuadTree *qt_finalise(const QuadTree *quadtree, const char *file);
+extern void qt_insert(UFQuadTree *quadtree, const Item *item);
+extern QuadTree *qt_finalise(const UFQuadTree *quadtree, const char *file);
 
 
 

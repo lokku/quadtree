@@ -19,7 +19,7 @@ inline FLOAT rnd() {
   return ((FLOAT)rand())/((FLOAT)RAND_MAX);
 }
 
-void populate(QuadTree *qt, u_int64_t n) {
+void populate(UFQuadTree *qt, u_int64_t n) {
   ITEM i;
   for (i=0; i<n; i++) {
 
@@ -85,11 +85,12 @@ int main(int argc, char **argv) {
   quadrant.sw[X] = 0;
   quadrant.sw[Y] = 0;
 
-  QuadTree *qt = qt_create_quadtree(&quadrant, n_buckets);
+  UFQuadTree *ufqt = qt_create_quadtree(&quadrant, n_buckets);
 
-  populate(qt, n_points);
+  populate(ufqt, n_points);
 
-  qt_finalise(qt, "_benchmark.dat");
+  QuadTree *qt = qt_finalise(ufqt, "_benchmark.dat");
+  qtuf_free(ufqt);
 
 
   clock_t start, end;
