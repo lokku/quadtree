@@ -87,24 +87,11 @@ struct __attribute__ ((__packed__)) QuadTree {
 
   u_int64_t size;
 
-  void *mem;
-
-  /* TODO: Consider having mem at the end of the struct, as:
-     void mem[];
-     So that we avoid needing an extra dereferencing (or avoid caching
-     two pointers when we could have made do with 1 --- we could probably
-     justify keeping the qt pointer in a register)
-  */
-  union {
-    void  *as_void;
-    Inner *as_inners;
-  } inners;
-
   /* Primarily so that we know whether to free() or munmap() memory,
    * but some folk enjoy closing file descriptors when their programs
    * exit. Defaults to -1
    */
-  int32_t fd;
+  int32_t fd; /**** TRASH THIS *****/
   u_int32_t padding;
 
   u_int32_t maxdepth;
@@ -286,9 +273,8 @@ u_int64_t _mem_size(const QuadTree *qt);
 
 
 
-#define MEM_INNERS(quadtree) ((quadtree)->mem+sizeof(QuadTree))
-#define MEM_LEAFS(quadtree)  (MEM_INNERS(quadtree) + (quadtree)->ninners*sizeof(Inner))
-
+#define MEM_INNERS(quadtree) ((void *)(((void *)(quadtree))+sizeof(QuadTree)))
+#define MEM_LEAFS(quadtree)  ((void *)(MEM_INNERS(quadtree) + (quadtree)->ninners*sizeof(Inner)))
 
 
 #define CALCDIVS(div_x, div_y, region)                                 \

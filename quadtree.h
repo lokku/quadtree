@@ -44,7 +44,7 @@ extern void qt_free(QuadTree *quadtree);
 
 /* qt_insert: item can be free()d immediately after qt_insert */
 extern void qt_insert(QuadTree *quadtree, const Item *item);
-extern void qt_finalise(QuadTree *quadtree, const char *file);
+extern QuadTree *qt_finalise(const QuadTree *quadtree, const char *file);
 
 
 

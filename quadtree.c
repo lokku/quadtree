@@ -126,9 +126,6 @@ QuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill) {
 
   qt->size     = 0;
 
-  qt->mem            = NULL;
-  qt->inners.as_void = NULL;
-
   qt->maxdepth = 0;
   qt->maxfill  = maxfill;
 
@@ -144,13 +141,7 @@ QuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill) {
 }
 
 void qt_free(QuadTree *qt) {
-  void *mem = qt->mem;
-
-  free(mem);
-
-  /* With qt_load, qt == mem, and so we shouldn't free twice */
-  if (qt != mem)
-    free(qt);
+  free(qt);
 }
 
 
@@ -169,11 +160,6 @@ void _init_root(QuadTree *qt) {
 
 
 void qt_insert(QuadTree *qt, const Item *item) {
-
-  if (qt->mem != NULL) {
-    fprintf(stderr, "error: attempt to insert into the quadtree after finalisation\n");
-    exit(1);
-  }
 
   qt->size++;
 
@@ -312,9 +298,12 @@ inline void _ensure_child_quad(QuadTree *qt, TransNode *node, quadindex quad, It
   }
 }
 
-/* Ensures the node is suitably split so that it can accept another item */
-/* Note that if the node is an inner node when passed into the funciton,
- * it may be a leaf node when the function terminates (i.e., the node's
+/* Ensures the node is suitably split so that it can accept _another_ item 
+ * (i.e., the item hasn't been inserted yet --- node->leaf.n has not been
+ * incremented).
+ *
+ * Note that if the node is a leaf node when passed into the function,
+ * it may be an inner node when the function terminates (i.e., the node's
  * type may change as a side effect of this function).
  */
 inline void _ensure_bucket_size(QuadTree *qt, TransNode *node, const Quadrant *quadrant, unsigned int depth) {
@@ -384,29 +373,27 @@ u_int64_t _mem_size(const QuadTree *qt) {
 
 
 
-void qt_finalise(QuadTree *qt, const char *file) {
+QuadTree *qt_finalise(const QuadTree *qt_, const char *file) {
 
-  if (qt->mem != NULL) {
-    fprintf(stderr, "error: quadtree already qt_finalised");
-    exit(1);
-  }
-
+  QuadTree *qt;
   FinaliseState st;
 
-  u_int64_t bytes = _mem_size(qt);
+  u_int64_t bytes = _mem_size(qt_);
 
-  qt->mem            = _malloc(bytes);
-  qt->inners.as_void = MEM_INNERS(qt);
+  void *mem = _malloc(bytes);
+
+  qt  = (QuadTree *)mem;
+  *qt = *qt_;
 
   st.quadtree = qt;
   st.ninners  = 0;
   st.cur_trans        = qt->root;
-  st.cur_node.as_void = qt->inners.as_void;
+  st.cur_node.as_void = MEM_INNERS(qt);
   st.next_leaf        = MEM_LEAFS(qt);
 
   _qt_finalise(&st);
 
-  qt->root = qt->inners.as_void;
+  qt->root = MEM_INNERS(qt);
 
   if (file != NULL) {
 
@@ -417,14 +404,14 @@ void qt_finalise(QuadTree *qt, const char *file) {
       exit(1);
     }
 
-    memcpy(qt->mem, qt, sizeof(QuadTree));
-
-    if (bytes != write(fd, qt->mem, bytes)) {
+    if (bytes != write(fd, mem, bytes)) {
       perror("write (qt_finalise)");
       exit(1);
     }
 
   }
+
+  return qt;
 
 }
 
@@ -460,14 +447,14 @@ void _qt_finalise_inner(FinaliseState *st) {
     if (st->cur_trans == NULL) {
       inner->quadrants[i] = ROOT;
     } else {
-      /* Note: qt->inners[st->ninners] is the _next_
+      /* Note: ((Inner *)MEM_INNERS(qt))[st->ninners] is the _next_
        * node to be finalised (i.e., _not_ this one).
        */
       st->cur_node.as_void = st->cur_trans->is_inner ?
-        (void *) &st->quadtree->inners.as_inners[st->ninners] :
+        (void *) &((Inner *)MEM_INNERS(st->quadtree))[st->ninners] :
         (void *) st->next_leaf;
 
-      inner->quadrants[i] = st->cur_node.as_void - st->quadtree->inners.as_void;
+      inner->quadrants[i] = st->cur_node.as_void - MEM_INNERS(st->quadtree);
 
       _qt_finalise(st);
     }
@@ -663,7 +650,7 @@ void _itr_next_recursive(Qt_Iterator *itr) {
 
 
     itr->stack[itr->so].node.as_node = (Node *)
-      (itr->quadtree->inners.as_void +
+      (MEM_INNERS(itr->quadtree) +
        itr->stack[itr->so-1].node.as_inner->quadrants[itr->stack[itr->so-1].quadrant]);
 
 
@@ -942,9 +929,7 @@ extern QuadTree *qt_load(const char *file) {
 
   qt = (QuadTree *) mem;
 
-  qt->mem            = mem;
-  qt->inners.as_void = MEM_INNERS(qt);
-  qt->root           = qt->inners.as_void;
+  qt->root = MEM_INNERS(qt);
 
   return qt;
 }

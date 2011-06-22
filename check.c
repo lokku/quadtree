@@ -192,7 +192,9 @@ int main(int argc, char **argv) {
 
   populate(qt, regions, nregions, 99999);
 
-  qt_finalise(qt, "_check.dat");
+  QuadTree *qt_ = qt_finalise(qt, "_check.dat");
+  qt_free(qt);
+  qt = qt_;
 
   errors += check(qt, regions, nregions);
 
