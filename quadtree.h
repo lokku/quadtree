@@ -19,7 +19,7 @@ unsigned long int nwithins;
 #endif
 
 
-typedef struct {
+typedef struct __attribute__ ((__packed__)) {
   FLOAT ne[2];
   FLOAT sw[2];
 } Quadrant;
@@ -42,8 +42,9 @@ typedef struct Item Item;
 extern QuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill);
 extern void qt_free(QuadTree *quadtree);
 
-extern void qt_insert(QuadTree *quadtree, Item item);
-extern void qt_finalise(QuadTree *quadtree);
+/* qt_insert: item can be free()d immediately after qt_insert */
+extern void qt_insert(QuadTree *quadtree, const Item *item);
+extern void qt_finalise(QuadTree *quadtree, const char *file);
 
 
 
@@ -51,8 +52,9 @@ extern Item **qt_query_ary(const QuadTree *quadtree, const Quadrant *region, u_i
 extern Item **qt_query_ary_fast(const QuadTree *quadtree, const Quadrant *region, u_int64_t *maxn);
 
 extern Qt_Iterator *qt_query_itr(const QuadTree *quadtree, const Quadrant *region);
+extern Item *qt_itr_next(Qt_Iterator *itr);
 
-extern inline Item *qt_itr_next(Qt_Iterator *itr);
+extern QuadTree *qt_load(const char *file);
 
 
 typedef enum {

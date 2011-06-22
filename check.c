@@ -43,7 +43,7 @@ void populate(QuadTree *qt, region *regions, short int nregions, ITEM n) {
     item.coords[0] = rnd();
     item.coords[1] = rnd();
 
-    qt_insert(qt, item);
+    qt_insert(qt, &item);
 
     for (j=0; j<nregions; j++) {
       if (in_quadrant(&item, &regions[j].region)) {
@@ -112,8 +112,11 @@ u_int64_t check(QuadTree *qt, const region *regions, short int nregions) {
 
   short int i;
   for (i=0; i<nregions; i++) {
-    printf("region: sw[X], sw[Y], ne[X], ne[Y] = %lf, %lf, %lf, %lf\n\n",
-           regions[i].region.sw[X], regions[i].region.sw[Y], regions[i].region.ne[X], regions[i].region.ne[Y]);
+
+    /*
+      printf("region: sw[X], sw[Y], ne[X], ne[Y] = %lf, %lf, %lf, %lf\n\n",
+      regions[i].region.sw[X], regions[i].region.sw[Y], regions[i].region.ne[X], regions[i].region.ne[Y]);
+    */
 
     u_int64_t maxn = 0;
 
@@ -172,6 +175,7 @@ u_int64_t check(QuadTree *qt, const region *regions, short int nregions) {
 int main(int argc, char **argv) {
 
   Quadrant quadrant;
+  u_int64_t errors = 0;
 
   quadrant.ne[X] = 1;
   quadrant.ne[Y] = 1;
@@ -188,9 +192,18 @@ int main(int argc, char **argv) {
 
   populate(qt, regions, nregions, 99999);
 
-  qt_finalise(qt);
+  qt_finalise(qt, "_check.dat");
 
-  u_int64_t errors = check(qt, regions, nregions);
+  errors += check(qt, regions, nregions);
+
+  printf("%ld errors\n", errors);
+  printf("fd_free()ing and fd_load()ing...\n");
+
+  qt_free(qt);
+
+  qt  = qt_load("_check.dat");
+  errors += check(qt, regions, nregions);
+
 
   qt_free(qt);
   free_regions(regions, nregions);

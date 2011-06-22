@@ -30,7 +30,7 @@ void populate(QuadTree *qt, u_int64_t n) {
     item.coords[0] = rnd();
     item.coords[1] = rnd();
 
-    qt_insert(qt, item);
+    qt_insert(qt, &item);
   }
 }
 
@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
 
   populate(qt, n_points);
 
-  qt_finalise(qt);
+  qt_finalise(qt, "_benchmark.dat");
 
 
   clock_t start, end;

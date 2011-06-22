@@ -1,4 +1,6 @@
 
+/* See open(2), O_LARGEFILE */
+#define _FILE_OFFSET_BITS 64
 
 #define _GNU_SOURCE
 
@@ -6,6 +8,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #ifndef NDEBUG
 #include <malloc.h>
@@ -57,7 +64,7 @@ inline void _nullify_quadrants(TransNode **quadrants) {
 inline void *_malloc(size_t size) {
   void *ptr;
   int err;
-  if (err = posix_memalign(&ptr, getpagesize(), size)) {
+  if ((err = posix_memalign(&ptr, getpagesize(), size))) {
     fprintf(stderr, "malloc: couldn't allocate %ld bytes", size);
     perror("posix_memalign");
   }
@@ -127,13 +134,22 @@ QuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill) {
   qt->ninners  = 1;
   qt->nleafs   = 0;
 
+  qt->fd = -1;
+
   _init_root(qt);
 
   return qt;
 }
 
 void qt_free(QuadTree *qt) {
-  free(qt->mem.as_void);
+
+  void *mem = qt->mem.as_void - sizeof(QuadTree);
+  if (qt->fd != -1) {
+    munmap(mem, _memsize(qt));
+    close(qt->fd);
+  } else {
+    free(mem);
+  }
   free(qt);
 }
 
@@ -152,7 +168,7 @@ void _init_root(QuadTree *qt) {
 
 
 
-void qt_insert(QuadTree *qt, Item item) {
+void qt_insert(QuadTree *qt, const Item *item) {
 
   if (qt->mem.as_void != NULL) {
     fprintf(stderr, "error: attempt to insert into the quadtree after finalisation\n");
@@ -164,7 +180,7 @@ void qt_insert(QuadTree *qt, Item item) {
 
   Item *itmcpy = _malloc_fast(sizeof(Item));
 
-  *itmcpy = item;
+  *itmcpy = *item;
 
   Quadrant quadrant = qt->region;
 
@@ -357,10 +373,16 @@ void _split_node(QuadTree *qt, TransNode *node, const Quadrant *quadrant, unsign
 
 
 
+u_int64_t _memsize(QuadTree *qt) {
+  return
+    sizeof(QuadTree) +
+    sizeof(Inner)*qt->ninners +
+    sizeof(Leaf)*qt->nleafs +
+    sizeof(Item)*qt->size;
+}
 
 
-
-void qt_finalise(QuadTree *qt) {
+void qt_finalise(QuadTree *qt, const char *file) {
 
   if (qt->mem.as_void != NULL) {
     fprintf(stderr, "error: quadtree already qt_finalised");
@@ -369,11 +391,47 @@ void qt_finalise(QuadTree *qt) {
 
   FinaliseState st;
 
-  u_int64_t bytes = sizeof(Inner)*qt->ninners + sizeof(Leaf)*qt->nleafs + sizeof(Item)*qt->size;
+  u_int64_t bytes = _memsize(qt);
 
-  qt->mem.as_void     = _malloc(bytes);
+  void *mem;
 
-  qt->divider.as_void = (void *)&qt->mem.as_inner[qt->ninners];
+  if (file != NULL) {
+
+    qt->fd = open(file, O_CREAT|O_NOATIME|O_TRUNC|O_RDWR, S_IRUSR|S_IWUSR);
+
+    if (qt->fd == -1) {
+      perror("open");
+      exit(1);
+    }
+
+    if (bytes-1 != lseek(qt->fd, bytes-1, SEEK_SET)) {
+      perror("seek");
+      exit(1);
+    }
+
+    /* Force the file to the desired length by writing
+     * some junk at the end */
+    write(qt->fd, file, 1);
+
+    /* MAP_HUGETLB might be useful... */
+    mem = mmap(NULL, bytes, PROT_READ|PROT_WRITE, MAP_SHARED, qt->fd, 0);
+
+    if (mem == MAP_FAILED) {
+      perror("mmap");
+      exit(1);
+    }
+
+    memcpy(mem, qt, sizeof(QuadTree));
+
+  } else {
+
+    mem = _malloc(bytes);
+
+  }
+
+  qt->mem.as_void = mem + sizeof(QuadTree);
+
+  qt->divider.as_void = sizeof(QuadTree) + (void *)&qt->mem.as_inner[qt->ninners];
 
   st.quadtree = qt;
   st.ninners  = 0;
@@ -796,4 +854,54 @@ inline void _include_leaf(Item ***items, u_int64_t *offset, u_int64_t *size, Lea
 void _free_itr(Qt_Iterator *itr) {
   free(itr->stack);
   free(itr);
+}
+
+
+
+
+
+
+extern QuadTree *qt_load(const char *file) {
+
+  QuadTree *qt;
+
+
+  void *mem;
+
+  if (file == NULL) {
+    fprintf(stderr, "error: no file given to qt_load\n");
+    exit(1);
+  }
+
+  int fd = open(file, O_RDONLY|O_NOATIME);
+  struct stat finfo;
+
+  if (fd == -1) {
+    perror("open");
+    exit(1);
+  }
+
+  if (fstat(fd, &finfo)) {
+    perror("stat");
+    exit(1);
+  }
+
+  /* MAP_HUGETLB might be useful... */
+  mem = mmap(NULL, finfo.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+
+  if (mem == MAP_FAILED) {
+    perror("mmap");
+    exit(1);
+  }
+
+  /* If we use our own buffer, we can open the file read-only */
+  qt = _malloc(sizeof(QuadTree));
+
+  *qt = *(QuadTree *) mem;
+
+  qt->mem.as_void = mem+sizeof(QuadTree);
+  qt->divider.as_void = (void *)&qt->mem.as_inner[qt->ninners];
+  qt->root = qt->mem.as_void;
+
+  return qt;
 }
