@@ -518,7 +518,10 @@ inline void _qt_finalise(FinaliseState *st) {
 
 inline Qt_Iterator *qt_query_itr(const QuadTree *qt, const Quadrant *region) {
 
-  Qt_Iterator *itr = (Qt_Iterator *)_malloc(sizeof(Qt_Iterator) + sizeof(*itr->stack)*qt->maxdepth);
+  /* Allocate memory for both Qt_Iterator and the stack */
+  Qt_Iterator *itr = (Qt_Iterator *)_malloc(
+    sizeof(Qt_Iterator) +
+    sizeof(*itr->stack)*(qt->maxdepth+1));
 
   itr->quadtree = qt;
   itr->region = *region;
@@ -571,12 +574,18 @@ inline Item *qt_itr_next(Qt_Iterator *itr) {
 
 void _itr_next_recursive(Qt_Iterator *itr) {
 
+  Qt_Itr_Frame *frame = &itr->stack[itr->so];
+  Qt_Itr_Frame *prev = frame-1;
+  Qt_Itr_Frame *next = frame+1;
+
+ RECURSE:
+
   assert(itr->so >= 0);
 
-  if (IS_LEAF(itr->quadtree, itr->stack[itr->so].node.as_node)) {
+  if (IS_LEAF(itr->quadtree, frame->node.as_node)) {
 
     itr->cur_item = 0;
-    itr->lp = itr->stack[itr->so].node.as_node;
+    itr->lp = frame->node.as_node;
     return;
 
     /* Done. (Success)
@@ -591,41 +600,77 @@ void _itr_next_recursive(Qt_Iterator *itr) {
 
   } else {
 
-    Quadrant rgncpy;
-
     /*
      * invarient: itr->stack[itr->so].quadrant has _not_ been traversed yet.
      */
 
     while (itr->so >= 0) {
-      assert(IS_INNER(itr->quadtree, itr->stack[itr->so].node.as_node));
+      assert(IS_INNER(itr->quadtree, frame->node.as_node));
 
       /* Loop through each quadrant */
-      while (itr->stack[itr->so].quadrant != QUAD) {
+      while (frame->quadrant != QUAD) {
 
         /* Skip empty/uninitialised quadrants */
-        if (itr->stack[itr->so].node.as_inner->quadrants[itr->stack[itr->so].quadrant] == ROOT)
+        if (frame->node.as_inner->quadrants[frame->quadrant] == ROOT)
           goto CONTINUE;
 
-        rgncpy = itr->stack[itr->so].region;
+        /* Calculate the child's region */
+        next->region = frame->region;
+        _target_quadrant(frame->quadrant, &next->region);
 
-        _target_quadrant(itr->stack[itr->so].quadrant, &rgncpy);
+        /* If this quadrant is within the query region, traverse downwards
+         * into the child node.
+         */
+        if (OVERLAP(itr->region, next->region)) {
 
-        if (OVERLAP(itr->region, rgncpy))
+          assert(itr->so >= 0);
+          assert(OVERLAP(frame->region, itr->region));
+
+          /* Enter the child */
+          itr->so++;
+          frame++;
+          prev++;
+          next++;
+
+          frame->quadrant = 0;
+
+          /* frame->region already initialised above */
+
+          frame->within_parent = prev->within_parent || CONTAINED(frame->region, itr->region);
+
+
+          frame->node.as_node = (Node *)
+            (MEM_INNERS(itr->quadtree) +
+             prev->node.as_inner->quadrants[prev->quadrant]);
+
+
+          /* Recurse.
+           *
+           * post-conditions:
+           *   * itr->stack[itr->so].quadrant     has _not_ been traversed yet.
+           *   * itr->stack[itr->so -1].quadrant  has _not_ been traversed yet.
+           *   * itr->stack[itr->so   ]           is the currently-visited node
+           */
+
           goto RECURSE;
+
+        }
 
       CONTINUE:
 
         /* Skip to the next quadrant */
-        itr->stack[itr->so].quadrant++;
+        frame->quadrant++;
 
       }
 
       /* No quadrants on this node remaining --- backtrack one node */
-      --itr->so;
+      itr->so--;
+      frame--;
+      prev--;
+      next--;
 
       if (itr->so >= 0)
-        itr->stack[itr->so].quadrant++;
+        frame->quadrant++;
 
 
     }
@@ -641,36 +686,6 @@ void _itr_next_recursive(Qt_Iterator *itr) {
      *   the next call to qt_itr_next() will return NULL.
      */
     return;
-
-  RECURSE:
-
-    assert(itr->so >= 0);
-    assert(OVERLAP(itr->stack[itr->so].region, itr->region));
-
-    itr->so++;
-
-    itr->stack[itr->so].quadrant = 0;
-    itr->stack[itr->so].region   = rgncpy;
-
-    itr->stack[itr->so].within_parent =
-      itr->stack[itr->so-1].within_parent || CONTAINED(rgncpy, itr->region);
-
-
-    itr->stack[itr->so].node.as_node = (Node *)
-      (MEM_INNERS(itr->quadtree) +
-       itr->stack[itr->so-1].node.as_inner->quadrants[itr->stack[itr->so-1].quadrant]);
-
-
-    /* Recurse.
-     *
-     * post-conditions:
-     *   * itr->stack[itr->so].quadrant     has _not_ been traversed yet.
-     *   * itr->stack[itr->so -1].quadrant  has _not_ been traversed yet.
-     *   * itr->stack[itr->so   ]           is the currently-visited node
-     */
-
-    return _itr_next_recursive(itr);
-
 
   }
 }
