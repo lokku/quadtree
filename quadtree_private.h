@@ -298,4 +298,12 @@ u_int64_t _mem_size(const UFQuadTree *qt);
 
 #define ROOT ((u_int64_t)0)
 
+
+
+
+#define FRAME(itr)     ((itr)->stack[(itr)->so])
+#define NEXTFRAME(itr) ((itr)->stack[(itr)->so+1])
+#define PREVFRAME(itr) ((itr)->stack[(itr)->so-1])
+
+
 #endif

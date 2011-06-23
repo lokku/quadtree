@@ -574,18 +574,14 @@ inline Item *qt_itr_next(Qt_Iterator *itr) {
 
 void _itr_next_recursive(Qt_Iterator *itr) {
 
-  Qt_Itr_Frame *frame = &itr->stack[itr->so];
-  Qt_Itr_Frame *prev = frame-1;
-  Qt_Itr_Frame *next = frame+1;
-
  RECURSE:
 
   assert(itr->so >= 0);
 
-  if (IS_LEAF(itr->quadtree, frame->node.as_node)) {
+  if (IS_LEAF(itr->quadtree, FRAME(itr).node.as_node)) {
 
     itr->cur_item = 0;
-    itr->lp = frame->node.as_node;
+    itr->lp = FRAME(itr).node.as_node;
     return;
 
     /* Done. (Success)
@@ -605,43 +601,41 @@ void _itr_next_recursive(Qt_Iterator *itr) {
      */
 
     while (itr->so >= 0) {
-      assert(IS_INNER(itr->quadtree, frame->node.as_node));
+
+      assert(IS_INNER(itr->quadtree, FRAME(itr).node.as_node));
 
       /* Loop through each quadrant */
-      while (frame->quadrant != QUAD) {
+      while (FRAME(itr).quadrant != QUAD) {
 
         /* Skip empty/uninitialised quadrants */
-        if (frame->node.as_inner->quadrants[frame->quadrant] == ROOT)
+        if (FRAME(itr).node.as_inner->quadrants[FRAME(itr).quadrant] == ROOT)
           goto CONTINUE;
 
         /* Calculate the child's region */
-        next->region = frame->region;
-        _target_quadrant(frame->quadrant, &next->region);
+        NEXTFRAME(itr).region = FRAME(itr).region;
+        _target_quadrant(FRAME(itr).quadrant, &NEXTFRAME(itr).region);
 
         /* If this quadrant is within the query region, traverse downwards
          * into the child node.
          */
-        if (OVERLAP(itr->region, next->region)) {
+        if (OVERLAP(itr->region, NEXTFRAME(itr).region)) {
 
           assert(itr->so >= 0);
-          assert(OVERLAP(frame->region, itr->region));
+          assert(OVERLAP(FRAME(itr).region, itr->region));
 
           /* Enter the child */
           itr->so++;
-          frame++;
-          prev++;
-          next++;
 
-          frame->quadrant = 0;
+          FRAME(itr).quadrant = 0;
 
-          /* frame->region already initialised above */
+          /* FRAME(itr).region already initialised above */
 
-          frame->within_parent = prev->within_parent || CONTAINED(frame->region, itr->region);
+          FRAME(itr).within_parent = PREVFRAME(itr).within_parent || CONTAINED(FRAME(itr).region, itr->region);
 
 
-          frame->node.as_node = (Node *)
+          FRAME(itr).node.as_node = (Node *)
             (MEM_INNERS(itr->quadtree) +
-             prev->node.as_inner->quadrants[prev->quadrant]);
+             PREVFRAME(itr).node.as_inner->quadrants[PREVFRAME(itr).quadrant]);
 
 
           /* Recurse.
@@ -659,19 +653,15 @@ void _itr_next_recursive(Qt_Iterator *itr) {
       CONTINUE:
 
         /* Skip to the next quadrant */
-        frame->quadrant++;
+        FRAME(itr).quadrant++;
 
       }
 
       /* No quadrants on this node remaining --- backtrack one node */
       itr->so--;
-      frame--;
-      prev--;
-      next--;
 
       if (itr->so >= 0)
-        frame->quadrant++;
-
+        FRAME(itr).quadrant++;
 
     }
 
