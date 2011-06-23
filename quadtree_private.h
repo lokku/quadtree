@@ -119,6 +119,7 @@ struct _Qt_Itr_Frame {
   } node;
 
   Quadrant  region;
+  Quadrant  quadrants[4];
   quadindex quadrant;
 
   /* Should _all_ items under (or in) this node be included? */
@@ -301,9 +302,9 @@ u_int64_t _mem_size(const UFQuadTree *qt);
 
 
 
-#define FRAME(itr)     ((itr)->stack[(itr)->so])
-#define NEXTFRAME(itr) ((itr)->stack[(itr)->so+1])
-#define PREVFRAME(itr) ((itr)->stack[(itr)->so-1])
+#define FRAME(itr,so)     ((itr)->stack[so])
+#define NEXTFRAME(itr,so) ((itr)->stack[so+1])
+#define PREVFRAME(itr,so) ((itr)->stack[so-1])
 
 
 #endif

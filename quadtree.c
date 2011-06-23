@@ -578,10 +578,12 @@ void _itr_next_recursive(Qt_Iterator *itr) {
 
   assert(itr->so >= 0);
 
-  if (IS_LEAF(itr->quadtree, FRAME(itr).node.as_node)) {
+  register int so = itr->so;
+
+  if (IS_LEAF(itr->quadtree, FRAME(itr,so).node.as_node)) {
 
     itr->cur_item = 0;
-    itr->lp = FRAME(itr).node.as_node;
+    itr->lp = FRAME(itr,so).node.as_node;
     return;
 
     /* Done. (Success)
@@ -602,40 +604,41 @@ void _itr_next_recursive(Qt_Iterator *itr) {
 
     while (itr->so >= 0) {
 
-      assert(IS_INNER(itr->quadtree, FRAME(itr).node.as_node));
+      assert(IS_INNER(itr->quadtree, FRAME(itr,so).node.as_node));
 
       /* Loop through each quadrant */
-      while (FRAME(itr).quadrant != QUAD) {
+      while (FRAME(itr,so).quadrant != QUAD) {
 
         /* Skip empty/uninitialised quadrants */
-        if (FRAME(itr).node.as_inner->quadrants[FRAME(itr).quadrant] == ROOT)
-          goto CONTINUE;
+        if (FRAME(itr,so).node.as_inner->quadrants[FRAME(itr,so).quadrant] == ROOT)
+          goto NEXTQUADRANT;
 
         /* Calculate the child's region */
-        NEXTFRAME(itr).region = FRAME(itr).region;
-        _target_quadrant(FRAME(itr).quadrant, &NEXTFRAME(itr).region);
+        NEXTFRAME(itr,so).region = FRAME(itr,so).region;
+        _target_quadrant(FRAME(itr,so).quadrant, &NEXTFRAME(itr,so).region);
 
         /* If this quadrant is within the query region, traverse downwards
          * into the child node.
          */
-        if (OVERLAP(itr->region, NEXTFRAME(itr).region)) {
+        if (OVERLAP(itr->region, NEXTFRAME(itr,so).region)) {
 
           assert(itr->so >= 0);
-          assert(OVERLAP(FRAME(itr).region, itr->region));
+          assert(OVERLAP(FRAME(itr,so).region, itr->region));
 
           /* Enter the child */
-          itr->so++;
+          so++;
+          itr->so = so;
 
-          FRAME(itr).quadrant = 0;
+          FRAME(itr,so).quadrant = 0;
 
-          /* FRAME(itr).region already initialised above */
+          /* FRAME(itr,so).region already initialised above */
 
-          FRAME(itr).within_parent = PREVFRAME(itr).within_parent || CONTAINED(FRAME(itr).region, itr->region);
+          FRAME(itr,so).within_parent = PREVFRAME(itr,so).within_parent || CONTAINED(FRAME(itr,so).region, itr->region);
 
 
-          FRAME(itr).node.as_node = (Node *)
+          FRAME(itr,so).node.as_node = (Node *)
             (MEM_INNERS(itr->quadtree) +
-             PREVFRAME(itr).node.as_inner->quadrants[PREVFRAME(itr).quadrant]);
+             PREVFRAME(itr,so).node.as_inner->quadrants[PREVFRAME(itr,so).quadrant]);
 
 
           /* Recurse.
@@ -650,18 +653,19 @@ void _itr_next_recursive(Qt_Iterator *itr) {
 
         }
 
-      CONTINUE:
+      NEXTQUADRANT:
 
         /* Skip to the next quadrant */
-        FRAME(itr).quadrant++;
+        FRAME(itr,so).quadrant++;
 
       }
 
       /* No quadrants on this node remaining --- backtrack one node */
-      itr->so--;
+      so--;
+      itr->so = so;
 
       if (itr->so >= 0)
-        FRAME(itr).quadrant++;
+        FRAME(itr,so).quadrant++;
 
     }
 
@@ -682,6 +686,36 @@ void _itr_next_recursive(Qt_Iterator *itr) {
 
 
 
+inline void _gen_child_quadrants(Quadrant *region, Quadrant *mem) {
+
+  ASSERT_REGION_SANE(region);
+
+  FLOAT div_x, div_y;
+  CALCDIVS(div_x, div_y, region);
+
+  const Quadrant ne = {
+    .ne = { [X] = region->ne[X], [Y] = region->ne[Y] },
+    .sw = { [X] = div_x,         [Y] = div_y         }
+  };
+  const Quadrant se = {
+    .ne = { [X] = region->ne[X], [Y] = div_y         },
+    .sw = { [X] = div_x,         [Y] = div_y         }
+  };
+  const Quadrant sw = {
+    .ne = { [X] = div_x,         [Y] = div_y         },
+    .sw = { [X] = region->sw[X], [Y] = region->sw[Y] }
+  };
+  const Quadrant nw = {
+    .ne = { [X] = div_x,         [Y] = region->ne[Y] },
+    .sw = { [X] = region->sw[X], [Y] = div_y         }
+  };
+
+  mem[NE] = ne;
+  mem[SE] = se;
+  mem[SW] = sw;
+  mem[NW] = nw;
+
+}
 
 
 inline void _target_quadrant(quadindex q, Quadrant *region) {
