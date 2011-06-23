@@ -98,15 +98,15 @@ struct UFQuadTree {
 
 struct __attribute__ ((__packed__)) QuadTree {
 
-  Quadrant region;
+  const Quadrant region;
 
-  u_int64_t size;
+  const u_int64_t size;
 
-  u_int32_t maxdepth;
-  u_int32_t padding;
+  const u_int32_t maxdepth;
+  const u_int32_t padding;
 
-  u_int64_t ninners;
-  u_int64_t nleafs;
+  const u_int64_t ninners;
+  const u_int64_t nleafs;
 
 };
 
@@ -171,7 +171,7 @@ struct Qt_Iterator {
 
 struct _FinaliseState {
 
-  QuadTree *quadtree;
+  const QuadTree *quadtree;
 
   u_int64_t ninners;
 

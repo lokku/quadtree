@@ -106,7 +106,7 @@ void populate_regions(UFQuadTree *qt, region *regions, short int nregions) {
   }
 }
 
-u_int64_t check(QuadTree *qt, const region *regions, short int nregions) {
+u_int64_t check(const QuadTree *qt, const region *regions, short int nregions) {
 
   u_int64_t errors = 0;
 
@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
 
   populate(ufqt, regions, nregions, 99999);
 
-  QuadTree *qt = qt_finalise(ufqt, "_check.dat");
+  const QuadTree *qt = qt_finalise(ufqt, "_check.dat");
   qtuf_free(ufqt);
 
   errors += check(qt, regions, nregions);
@@ -200,13 +200,13 @@ int main(int argc, char **argv) {
   printf("%ld errors\n", errors);
   printf("qt_free()ing and qt_load()ing...\n");
 
-  qt_free(qt);
+  qt_free((QuadTree *)qt);
 
   qt  = qt_load("_check.dat");
   errors += check(qt, regions, nregions);
 
 
-  qt_free(qt);
+  qt_free((QuadTree *)qt);
   free_regions(regions, nregions);
 
 #ifndef NDEBUG

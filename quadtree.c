@@ -371,28 +371,40 @@ u_int64_t _mem_size(const UFQuadTree *qt) {
 
 
 void _init_quadtree(QuadTree *new, const UFQuadTree *from) {
-  new->region   = from->region;
-  new->size     = from->size;
-  new->maxdepth = from->maxdepth;
-  new->ninners  = from->ninners;
-  new->nleafs   = from->nleafs;
-  new->padding  = 0;
+
+  QuadTree tmp = {
+    .region   = from->region,
+    .size     = from->size,
+    .maxdepth = from->maxdepth,
+    .ninners  = from->ninners,
+    .nleafs   = from->nleafs,
+    .padding  = 0
+  };
+
+  memcpy(new, &tmp, sizeof(QuadTree));
 }
 
 
 
-QuadTree *qt_finalise(const UFQuadTree *qt_, const char *file) {
+const QuadTree *qt_finalise(const UFQuadTree *qt_, const char *file) {
 
-  QuadTree *qt;
+  const QuadTree *qt;
   FinaliseState st;
 
   u_int64_t bytes = _mem_size(qt_);
 
   void *mem = _malloc(bytes);
 
-  qt  = (QuadTree *)mem;
+  /* Initialise the QuadTree before assigning the pointer.
+   * This is just because I'm cautious. The elements of QuadTree
+   * are all const-s, and so once the quadtree pointer is assigned,
+   * the compiler could, in theory, choose to cache the memory
+   * without ever re-reading it. Whatever, that would never happen,
+   * but call _init_quadtree() before assigning to qt anyway.
+   */
+  _init_quadtree((QuadTree *)mem, qt_);
 
-  _init_quadtree(qt, qt_);
+  qt  = (QuadTree *)mem;
 
   st.quadtree = qt;
   st.ninners  = 0;
@@ -940,7 +952,7 @@ void _read_mem(void *mem, int fd, u_int64_t bytes) {
 
 
 
-extern QuadTree *qt_load(const char *file) {
+extern const QuadTree *qt_load(const char *file) {
 
   QuadTree *qt;
 

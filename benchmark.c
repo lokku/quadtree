@@ -35,7 +35,7 @@ void populate(UFQuadTree *qt, u_int64_t n) {
 }
 
 
-void benchmark(QuadTree *qt, int n, FLOAT radius, u_int64_t *total) {
+void benchmark(const QuadTree *qt, int n, FLOAT radius, u_int64_t *total) {
 
   Quadrant region;
 
@@ -89,9 +89,9 @@ int main(int argc, char **argv) {
 
   populate(ufqt, n_points);
 
-  QuadTree *qt = qt_finalise(ufqt, "_benchmark.dat");
+  const QuadTree *qt = qt_finalise(ufqt, "_benchmark.dat");
   qtuf_free(ufqt);
-  qt_free(qt);
+  qt_free((QuadTree *)qt);
   qt = qt_load("_benchmark.dat");
 
 
@@ -113,6 +113,8 @@ int main(int argc, char **argv) {
 #ifndef NDEBUG
   printf("withins: %ld, nwithins: %ld\n", withins, nwithins);
 #endif
+
+  qt_free((QuadTree *)qt);
 
   return 0;
 }

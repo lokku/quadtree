@@ -47,7 +47,7 @@ extern void qtuf_free(UFQuadTree *quadtree);
 
 /* qt_insert: item can be free()d immediately after qt_insert */
 extern void qt_insert(UFQuadTree *quadtree, const Item *item);
-extern QuadTree *qt_finalise(const UFQuadTree *quadtree, const char *file);
+extern const QuadTree *qt_finalise(const UFQuadTree *quadtree, const char *file);
 
 
 
@@ -57,7 +57,7 @@ extern Item **qt_query_ary_fast(const QuadTree *quadtree, const Quadrant *region
 extern Qt_Iterator *qt_query_itr(const QuadTree *quadtree, const Quadrant *region);
 extern Item *qt_itr_next(Qt_Iterator *itr);
 
-extern QuadTree *qt_load(const char *file);
+extern const QuadTree *qt_load(const char *file);
 
 
 typedef enum {
