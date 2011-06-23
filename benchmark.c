@@ -91,6 +91,7 @@ int main(int argc, char **argv) {
 
   QuadTree *qt = qt_finalise(ufqt, "_benchmark.dat");
   qtuf_free(ufqt);
+  qt_free(qt);
   qt = qt_load("_benchmark.dat");
 
 

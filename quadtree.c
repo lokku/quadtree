@@ -521,7 +521,7 @@ inline Qt_Iterator *qt_query_itr(const QuadTree *qt, const Quadrant *region) {
   /* Allocate memory for both Qt_Iterator and the stack */
   Qt_Iterator *itr = (Qt_Iterator *)_malloc(
     sizeof(Qt_Iterator) +
-    sizeof(*itr->stack)*(qt->maxdepth+1));
+    sizeof(*itr->stack)*qt->maxdepth);
 
   itr->quadtree = qt;
   itr->region = *region;
@@ -688,6 +688,7 @@ void _itr_next_recursive(Qt_Iterator *itr) {
 
 
 
+/* Slightly faster than lots of _target_quadrant()s */
 inline void _gen_quadrants(const Quadrant *region, Quadrant *mem) {
 
   ASSERT_REGION_SANE(region);
@@ -715,6 +716,7 @@ inline void _gen_quadrants(const Quadrant *region, Quadrant *mem) {
   mem[NW].ne[Y] = region->ne[Y];
   mem[NW].sw[X] = region->sw[X];
   mem[NW].sw[Y] = div_y;
+
 
   ASSERT_REGION_SANE(&mem[NE]);
   ASSERT_REGION_SANE(&mem[SE]);
@@ -767,16 +769,7 @@ Item **qt_query_ary(const QuadTree *quadtree, const Quadrant *region, u_int64_t 
       alloced*= 2;
       items = _realloc(items, sizeof(*items) * alloced);
     }
-    /*    printf("item[%ld] = { value = %ld, x = %lf, y = %lf }\n",
-           i, items[i]->value, items[i]->coords[0], items[i]->coords[1]);
-           printf("itr->curitem: %ld\n", itr->cur_item);
-    int j;
-    for (j=0; j<itr->so; j++) printf(" %d", itr->stack[j].quadrant);
-    printf("\n");
-    */
   }
-
-  /*  printf("\n\n\n-----------------\n\n\n"); */
 
   *maxn = i;
 
