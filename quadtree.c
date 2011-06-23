@@ -695,32 +695,31 @@ inline void _gen_quadrants(const Quadrant *region, Quadrant *mem) {
   FLOAT div_x, div_y;
   CALCDIVS(div_x, div_y, region);
 
-  const Quadrant ne = {
-    .ne = { [X] = region->ne[X], [Y] = region->ne[Y] },
-    .sw = { [X] = div_x,         [Y] = div_y         }
-  };
-  const Quadrant se = {
-    .ne = { [X] = region->ne[X], [Y] = div_y         },
-    .sw = { [X] = div_x,         [Y] = region->sw[Y] }
-  };
-  const Quadrant sw = {
-    .ne = { [X] = div_x,         [Y] = div_y         },
-    .sw = { [X] = region->sw[X], [Y] = region->sw[Y] }
-  };
-  const Quadrant nw = {
-    .ne = { [X] = div_x,         [Y] = region->ne[Y] },
-    .sw = { [X] = region->sw[X], [Y] = div_y         }
-  };
 
-  mem[NE] = ne;
-  mem[SE] = se;
-  mem[SW] = sw;
-  mem[NW] = nw;
+  mem[NE].ne[X] = region->ne[X];
+  mem[NE].ne[Y] = region->ne[Y];
+  mem[NE].sw[X] = div_x;
+  mem[NE].sw[Y] = div_y;
 
-  ASSERT_REGION_SANE(&ne);
-  ASSERT_REGION_SANE(&se);
-  ASSERT_REGION_SANE(&sw);
-  ASSERT_REGION_SANE(&nw);
+  mem[SE].ne[X] = region->ne[X];
+  mem[SE].ne[Y] = div_y;
+  mem[SE].sw[X] = div_x;
+  mem[SE].sw[Y] = region->sw[Y];
+
+  mem[SW].ne[X] = div_x;
+  mem[SW].ne[Y] = div_y;
+  mem[SW].sw[X] = region->sw[X];
+  mem[SW].sw[Y] = region->sw[Y];
+
+  mem[NW].ne[X] = div_x;
+  mem[NW].ne[Y] = region->ne[Y];
+  mem[NW].sw[X] = region->sw[X];
+  mem[NW].sw[Y] = div_y;
+
+  ASSERT_REGION_SANE(&mem[NE]);
+  ASSERT_REGION_SANE(&mem[SE]);
+  ASSERT_REGION_SANE(&mem[SW]);
+  ASSERT_REGION_SANE(&mem[NW]);
 
 }
 
