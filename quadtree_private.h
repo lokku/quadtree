@@ -118,7 +118,6 @@ struct _Qt_Itr_Frame {
     Node  *as_node;
   } node;
 
-  Quadrant  region;
   Quadrant  quadrants[4];
   quadindex quadrant;
 
@@ -198,6 +197,7 @@ inline _Bool in_quadrant(const Item *i, const Quadrant *q);
 inline void _target_quadrant(quadindex q, Quadrant *region);
 inline void _qt_finalise(FinaliseState *st);
 inline void _include_leaf(Item ***items, u_int64_t *offset, u_int64_t *size, Leaf *leaf, Quadrant *region,_Bool within);
+inline void _gen_quadrants(const Quadrant *region, Quadrant *mem);
 
 
 void  _qt_insert(UFQuadTree *qt, TransNode *node, Item *item, Quadrant *quadrant, unsigned int depth);

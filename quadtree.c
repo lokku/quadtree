@@ -531,9 +531,10 @@ inline Qt_Iterator *qt_query_itr(const QuadTree *qt, const Quadrant *region) {
   itr->so = 0;
 
   itr->stack[0].node.as_node  = MEM_ROOT(qt);
-  itr->stack[0].region        = qt->region;
   itr->stack[0].quadrant      = 0;
   itr->stack[0].within_parent = 0;
+
+  _gen_quadrants(&qt->region, itr->stack[0].quadrants);
 
   _itr_next_recursive(itr);
 
@@ -613,27 +614,28 @@ void _itr_next_recursive(Qt_Iterator *itr) {
         if (FRAME(itr,so).node.as_inner->quadrants[FRAME(itr,so).quadrant] == ROOT)
           goto NEXTQUADRANT;
 
-        /* Calculate the child's region */
-        NEXTFRAME(itr,so).region = FRAME(itr,so).region;
-        _target_quadrant(FRAME(itr,so).quadrant, &NEXTFRAME(itr,so).region);
-
         /* If this quadrant is within the query region, traverse downwards
          * into the child node.
          */
-        if (OVERLAP(itr->region, NEXTFRAME(itr,so).region)) {
+        if (OVERLAP(itr->region, FRAME(itr,so).quadrants[FRAME(itr,so).quadrant])) {
 
           assert(itr->so >= 0);
-          assert(OVERLAP(FRAME(itr,so).region, itr->region));
+          assert(OVERLAP(FRAME(itr,so).quadrants[FRAME(itr,so).quadrant], itr->region));
 
           /* Enter the child */
           so++;
           itr->so = so;
 
           FRAME(itr,so).quadrant = 0;
+          _gen_quadrants(&PREVFRAME(itr,so).quadrants[PREVFRAME(itr,so).quadrant],
+                         FRAME(itr,so).quadrants);
 
           /* FRAME(itr,so).region already initialised above */
 
-          FRAME(itr,so).within_parent = PREVFRAME(itr,so).within_parent || CONTAINED(FRAME(itr,so).region, itr->region);
+          FRAME(itr,so).within_parent =
+            PREVFRAME(itr,so).within_parent ||
+            CONTAINED(PREVFRAME(itr,so).quadrants[PREVFRAME(itr,so).quadrant],
+                      itr->region);
 
 
           FRAME(itr,so).node.as_node = (Node *)
@@ -686,7 +688,7 @@ void _itr_next_recursive(Qt_Iterator *itr) {
 
 
 
-inline void _gen_child_quadrants(Quadrant *region, Quadrant *mem) {
+inline void _gen_quadrants(const Quadrant *region, Quadrant *mem) {
 
   ASSERT_REGION_SANE(region);
 
@@ -699,7 +701,7 @@ inline void _gen_child_quadrants(Quadrant *region, Quadrant *mem) {
   };
   const Quadrant se = {
     .ne = { [X] = region->ne[X], [Y] = div_y         },
-    .sw = { [X] = div_x,         [Y] = div_y         }
+    .sw = { [X] = div_x,         [Y] = region->sw[Y] }
   };
   const Quadrant sw = {
     .ne = { [X] = div_x,         [Y] = div_y         },
@@ -714,6 +716,11 @@ inline void _gen_child_quadrants(Quadrant *region, Quadrant *mem) {
   mem[SE] = se;
   mem[SW] = sw;
   mem[NW] = nw;
+
+  ASSERT_REGION_SANE(&ne);
+  ASSERT_REGION_SANE(&se);
+  ASSERT_REGION_SANE(&sw);
+  ASSERT_REGION_SANE(&nw);
 
 }
 
