@@ -68,6 +68,7 @@ inline void *_malloc(size_t size) {
   if ((err = posix_memalign(&ptr, getpagesize(), size))) {
     fprintf(stderr, "malloc: couldn't allocate %ld bytes", size);
     perror("posix_memalign");
+    exit(1);
   }
   return ptr;
 }
@@ -77,6 +78,7 @@ inline void *_malloc_fast(size_t size) {
   if (ptr == NULL) {
     fprintf(stderr, "malloc: couldn't allocate %ld bytes", size);
     perror("malloc");
+    exit(1);
   }
   return ptr;
 }
@@ -86,6 +88,7 @@ inline void *_realloc(void *ptr, size_t size) {
   if (ptr == NULL) {
     fprintf(stderr, "realloc: couldn't allocate %ld bytes", size);
     perror("realloc");
+    exit(1);
   }
   return ptr;
 }
