@@ -38,7 +38,7 @@ typedef struct _Qt_Itr_Frame    Qt_Itr_Frame;
  * This also applies to struct Item, defined in quadtree.h
  */
 
-struct __attribute__ ((__packed__)) _Inner {
+struct _Inner {
   /* quadrants:
    *   offset (in bytes) to the node's location within
    *   quadtree->inners (e.g., the root node is always 0).
@@ -48,12 +48,12 @@ struct __attribute__ ((__packed__)) _Inner {
    *   no child at that quadrant.
    */
   u_int64_t quadrants[4];
-};
+} __attribute__ ((__packed__));
 
-struct __attribute__ ((__packed__)) _Leaf {
+struct _Leaf {
   u_int64_t n;
   Item items[];
-};
+} __attribute__ ((__packed__));
 
 /* A transient node: soon it will be either an inner or leaf node */
 struct _TransNode {
@@ -96,7 +96,7 @@ struct UFQuadTree {
 
 };
 
-struct __attribute__ ((__packed__)) QuadTree {
+struct QuadTree {
 
   const Quadrant region;
 
@@ -108,7 +108,7 @@ struct __attribute__ ((__packed__)) QuadTree {
   const u_int64_t ninners;
   const u_int64_t nleafs;
 
-};
+} __attribute__ ((__packed__));
 
 
 struct _Qt_Itr_Frame {

@@ -21,19 +21,19 @@ unsigned long int nwithins;
 #endif
 
 
-typedef struct __attribute__ ((__packed__)) {
+struct Quadrant {
   FLOAT ne[2];
   FLOAT sw[2];
-} Quadrant;
+} __attribute__ ((__packed__));
 
+typedef struct Quadrant Quadrant;
 
-
-struct __attribute__ ((__packed__)) Item {
+struct Item {
 
   ITEM  value;
   FLOAT coords[2];
 
-};
+} __attribute__ ((__packed__));
 
 typedef struct Item Item;
 
