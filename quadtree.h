@@ -5,20 +5,14 @@
 #include <sys/types.h>
 
 
-/* UnFinalisedQuadTree */
-typedef struct UFQuadTree UFQuadTree;
-typedef struct QuadTree   QuadTree;
-typedef struct Qt_Iterator Qt_Iterator;
-
 typedef u_int64_t      ITEM;
 typedef double         FLOAT;
 typedef unsigned int   BUCKETSIZE;
 
 
-#ifndef NDEBUG
-unsigned long int withins;
-unsigned long int nwithins;
-#endif
+
+/* UnFinalisedQuadTree */
+typedef struct UFQuadTree UFQuadTree;
 
 
 struct Quadrant {
@@ -27,6 +21,33 @@ struct Quadrant {
 } __attribute__ ((__packed__));
 
 typedef struct Quadrant Quadrant;
+
+
+struct QuadTree {
+
+  const Quadrant region;
+
+  const u_int64_t size;
+
+  const u_int32_t maxdepth;
+  const u_int32_t padding;
+
+  const u_int64_t ninners;
+  const u_int64_t nleafs;
+
+} __attribute__ ((__packed__));
+
+typedef struct QuadTree   QuadTree;
+
+typedef struct Qt_Iterator Qt_Iterator;
+
+
+
+#ifndef NDEBUG
+unsigned long int withins;
+unsigned long int nwithins;
+#endif
+
 
 struct Item {
 

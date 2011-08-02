@@ -96,20 +96,6 @@ struct UFQuadTree {
 
 };
 
-struct QuadTree {
-
-  const Quadrant region;
-
-  const u_int64_t size;
-
-  const u_int32_t maxdepth;
-  const u_int32_t padding;
-
-  const u_int64_t ninners;
-  const u_int64_t nleafs;
-
-} __attribute__ ((__packed__));
-
 
 struct _Qt_Itr_Frame {
   union {
