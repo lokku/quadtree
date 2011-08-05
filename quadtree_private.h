@@ -40,12 +40,8 @@ typedef struct _Qt_Itr_Frame    Qt_Itr_Frame;
 
 struct _Inner {
   /* quadrants:
-   *   offset (in bytes) to the node's location within
-   *   quadtree->inners (e.g., the root node is always 0).
-   *   Note that if the offset is 0, then
-   *   node is pointing to the root node which can never
-   *   happen, so if the offset is 0, it means that there's
-   *   no child at that quadrant.
+   *   offsets in bytes to other _Inner or _Leaf structs.
+   *   an offset of 0 means that there is no child.
    */
   u_int64_t quadrants[4];
 } __attribute__ ((__packed__));
