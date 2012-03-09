@@ -6,9 +6,6 @@ use warnings;
 use Time::HiRes;
 use Algorithm::SpatialIndex;
 
-
-
-
 sub benchmark {
 
     my ($idx, $n, $radius) = @_;
