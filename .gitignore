@@ -3,7 +3,6 @@ Makefile
 Makefile.in
 aclocal.m4
 autom4te.cache/
-build/
 config.log
 config.status
 configure
@@ -16,6 +15,14 @@ src/config.h*
 src/stamp-h1
 libtool
 *.dirstamp
+
+# Ugh, this one requires special handling since git won't store a directory
+# with no files, and libtoolize won't create the directory for us
+!/build/
+/build/*
+!/build/m4/
+/build/m4/*
+!/build/m4/.keepdir
 
 # Ignore object and libtool files
 *.o
