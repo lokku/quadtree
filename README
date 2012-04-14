@@ -1,8 +1,65 @@
+libquadtree 1.1
+
+TABLE OF CONTENTS
+~~~~~~~~~~~~~~~~~
+* Introduction
+* Building & Installing
+* License
+* Contact
+
+
+Introduction
+~~~~~~~~~~~~
+libquadtree is a fast implementation of a quadtree datastructure, optimized for
+AMD64.
+
+Building & Installing
+~~~~~~~~~~~~~~~~~~~~~
+To install locally and test:
+   1) Change into the source directory:
+      $ cd libquadtree-1.1/
+
+   2) Configure the library for your system:
+      $ ./configure --prefix=$PWD/testdir
+
+   3) Build the library
+      $ make
+
+   4) Install into the $PWD/testdir:
+      $ make install
+
+   5) Run tests to ensure that it works:
+      $ make check
+
+To install in a production environment:
+   1) Configure the library:
+      $ cd libquadtree-1.1/
+      $ ./configure
+
+   2) Compile with asserts disabled and maximum optimizations
+      $ make clean all CFLAGS="-DNDEBUG -O3"
+
+   3) Install with debugging symbols stripped
+      $ make install-strip
+
+   The default prefix for installation is `/usr', but can be overrided by
+   passing the `--prefix=/absolute/path/' to the configure script.
+
+
+See the INSTALL file for detailed but generic instructions of how to use more
+advanced features of the build system.
+
+License
+~~~~~~~
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
 
+See the COPYING file for the full text of the license.
+
+Contact
+~~~~~~~
 To contact us about this piece of software, send an email to the following
 address: opensource@lokku.com
 

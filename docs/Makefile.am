@@ -14,15 +14,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+EXTRA_DIST = make-help.txt
 
-
-
-all: bi-traverse linear-traverse
-
-
-clean:
-	rm bi-traverse linear-traverse
-
-
-% : %.c
-	gcc -o $@ -Wall -O2 $< 
+# Man page
+dist_man_MANS = libquadtree.3

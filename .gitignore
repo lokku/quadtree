@@ -1,0 +1,23 @@
+# Ignore autotools generated files
+Makefile
+Makefile.in
+aclocal.m4
+autom4te.cache/
+build/
+config.log
+config.status
+configure
+libquadtree-*.*
+src/.deps/
+src/.libs/
+src/Makefile
+src/Makefile.in
+src/config.h*
+src/stamp-h1
+libtool
+*.dirstamp
+
+# Ignore object and libtool files
+*.o
+*.la
+*.lo

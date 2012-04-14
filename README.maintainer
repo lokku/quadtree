@@ -1,0 +1,86 @@
+Here are some notes that may be useful for maintainers or other developers.
+
+TABLE OF CONTENTS
+~~~~~~~~~~~~~~~~~
+1) Regenerating all autotools-produced files
+2) Installing in a custom production environment
+3) Making a new release
+4) Making a tarball to distribute
+5) Shared object versioning
+
+
+NOTES
+~~~~~
+1) Regenerating all autotools-produced files:
+      There is a quick, handy command that does all the work for you:
+            $ autoreconf -i
+
+2) Installing in a custom production environment
+      $ ./configure --prefix=$PLAYPEN_ROOT/ext/
+      $ make clean all CFLAGS="-DNDEBUG -O3"
+      $ make install-strip
+
+3) Making a new release
+      a) When making a new release, there are several places where version
+      numbers must be updated. First, update the package version number in the
+      file `configure.ac', in the second argument to the AC_INIT macro. Second,
+      grep through the README and update version numbers there. Finally, update
+      the version number in the first line of the man page `docs/libquadtree.3'
+
+      b) If the API has changed, or the implementation has changed
+      significantly, see note 5 below, and update the `libquadtree.so' version
+      (this is separate from the package version above.)
+
+      c) Update the `ChangeLog' file with a detailed >summary< of both user and
+      developer oriented changes (see existing log entries for the amount of
+      detail.) Update the NEWS file with a much briefer summary including only
+      user-oriented changes (i.e for people using the library, not hacking it.)
+
+      d) If the API has changed, update the manpage synopsis and examples to
+      reflect the latest version.
+
+      e) Follow NOTE-4 below to create a tarball to distribute.
+
+4) Making a tarball to distribute:
+      a) Build the package:
+            $ ./configure
+            $ make
+
+      b) Run the package tests, all of which should pass.
+            $ make check
+
+      c) Check that `make dist` will produce a correct tarballs. If this test
+      fails, the resulting tarball may not work as expected for some users,
+      even if it works fine for your purposes. In particular, nothing should
+      ever be installed at a hardcoded location that doesn't make use of
+      ${prefix}.
+            $ make distcheck
+
+      This will run tests and generate distributions with the default archive
+      formats (as specified in `configure.ac'.) See `make help` for a full list
+      of available formats.
+
+5) Shared object versioning
+      The configuration for the shared object versioning is in the file
+      `configure.ac'. It is important to follow the version conventions
+      properly, to avoid the linker loading incompatible versions of libraries,
+      and to avoid unnecessary recompilation.
+
+      If you are making a backwards-compatible change to the API (for instance,
+      adding new methods), increment LIB_API_VERSION by 1, reset LIB_REVISION
+      to 0, and increment LIB_AGE by 1 (the age specifies the number of
+      previous API versions (nothing to do with revisions) that this API is 
+      backwards compatible with.)
+
+      If you are making compatibility breaking change to the API, increment
+      LIB_API_VERSION by 1, and reset LIB_REVISION and LIB_AGE to 0.
+
+      If the API doesn't change, but a significant implementation change is
+      made, increment LIB_REVISION.
+
+SEE ALSO
+~~~~~~~~
+Some questions about the build system may be answered by trying:
+
+   $ ./configure --help
+   $ make help

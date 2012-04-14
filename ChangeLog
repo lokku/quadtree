@@ -1,0 +1,10 @@
+2012-04-13 Vincent Launchbury <vincent@lokku.com>
+	* GNU autotoolized the project
+		- Now uses the traditional './configure && make && make install' toolchain
+		- Added the GNU standard files AUTHORS/ChangeLog/INSTALL/NEWS/etc
+	* Reorganized the directory structure
+		- Source is now in src/
+		- Tests are now in src/tests/
+		- Docs are now in docs/
+	* Added a detailed README for maitainers (and other developers)
+	* Added a basic manpage for the library
