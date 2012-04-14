@@ -36,22 +36,11 @@
 #include <malloc.h>
 #endif
 
-
 #include "quadtree.h"
 #include "quadtree_private.h"
 
-
-
-
-
-
 unsigned long int withins  = 0;
 unsigned long int nwithins = 0;
-
-
-
-
-
 
 
 /* Expect this to be faster than a memcpy */
@@ -63,11 +52,6 @@ inline void _nullify_quadrants(TransNode **quadrants) {
 }
 
 
-
-
-
-
-
 /* AMD phenom has 64-byte cache line width.
  * sizeof(inner) = sizeof(void *)*4 = 32 bytes
  * We want to make sure that the inner structs are 64-byte
@@ -75,9 +59,6 @@ inline void _nullify_quadrants(TransNode **quadrants) {
  * By storing inner in depth-first traversal order, we can
  * expect cache-hits 1/4 of the time.
  */
-
-
-
 
 inline void *_malloc(size_t size) {
   void *ptr;
@@ -115,27 +96,11 @@ inline void *_realloc(void *ptr, size_t size) {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 _Bool in_quadrant(const Item *i, const Quadrant *q) {
   return ((i->coords[X] >= q->sw[X]) && (i->coords[X] <= q->ne[X]) &&
           (i->coords[Y] >= q->sw[Y]) && (i->coords[Y] <= q->ne[Y]));
 
 }
-
-
-
 
 
 UFQuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill) {
@@ -844,14 +809,6 @@ Item **qt_query_ary_fast(const QuadTree *quadtree, const Quadrant *region, u_int
 
 
 
-
-
-
-
-
-
-
-
 /*
  * Note: offset is the position at which we can start storing items
  * (i.e., *items+offset must not already contain an item).
@@ -1008,3 +965,4 @@ extern const QuadTree *qt_load(const char *file) {
 
   return qt;
 }
+
