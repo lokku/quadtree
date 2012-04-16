@@ -16,8 +16,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef QUADTREE_PRIVATE_h
-#define QUADTREE_PRIVATE_h
+#ifndef QUADTREE_PRIVATE_H
+#define QUADTREE_PRIVATE_H
 
 #include <stdio.h>
 
@@ -188,7 +188,7 @@ struct _FinaliseState {
 };
 
 
-inline void _ensure_child_quad(UFQuadTree *qt, TransNode *node, quadindex quad, Item *item);
+inline void _ensure_child_quad(UFQuadTree *qt, TransNode *node, quadindex quad);
 inline void _ensure_bucket_size(UFQuadTree *qt, TransNode *node, const Quadrant *quadrant, unsigned int depth);
 inline int _FLOATcmp(FLOAT *a, FLOAT *b);
 inline int _count_distinct_items(TransNode *node);
@@ -307,4 +307,5 @@ u_int64_t _mem_size(const UFQuadTree *qt);
 #define PREVFRAME(itr,so) ((itr)->stack[so-1])
 
 
-#endif
+#endif /* QUADTREE_PRIVATE_H */
+

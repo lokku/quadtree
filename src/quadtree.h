@@ -16,17 +16,14 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef QUADTREE_h
-#define QUADTREE_h
-
+#ifndef QUADTREE_H
+#define QUADTREE_H
 
 #include <sys/types.h>
-
 
 typedef u_int64_t      ITEM;
 typedef double         FLOAT;
 typedef unsigned int   BUCKETSIZE;
-
 
 
 /* UnFinalisedQuadTree */
@@ -42,7 +39,6 @@ typedef struct Quadrant Quadrant;
 
 
 struct QuadTree {
-
   const Quadrant region;
 
   const u_int64_t size;
@@ -52,13 +48,11 @@ struct QuadTree {
 
   const u_int64_t ninners;
   const u_int64_t nleafs;
-
 } __attribute__ ((__packed__));
 
 typedef struct QuadTree   QuadTree;
 
 typedef struct Qt_Iterator Qt_Iterator;
-
 
 
 #ifndef NDEBUG
@@ -68,16 +62,11 @@ unsigned long int nwithins;
 
 
 struct Item {
-
   ITEM  value;
   FLOAT coords[2];
-
 } __attribute__ ((__packed__));
 
 typedef struct Item Item;
-
-
-
 
 
 extern UFQuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill);
@@ -87,7 +76,6 @@ extern void qtuf_free(UFQuadTree *quadtree);
 /* qt_insert: item can be free()d immediately after qt_insert */
 extern void qt_insert(UFQuadTree *quadtree, const Item *item);
 extern const QuadTree *qt_finalise(const UFQuadTree *quadtree, const char *file);
-
 
 
 extern Item **qt_query_ary(const QuadTree *quadtree, const Quadrant *region, u_int64_t *maxn);
@@ -109,4 +97,5 @@ typedef enum {
 } quadindex;
 
 
-#endif
+#endif /* QUADTREE_H */
+

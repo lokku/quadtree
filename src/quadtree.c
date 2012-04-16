@@ -38,6 +38,7 @@
 
 #include "quadtree.h"
 #include "quadtree_private.h"
+#include "quadtree_portable.h"
 
 unsigned long int withins  = 0;
 unsigned long int nwithins = 0;
@@ -64,7 +65,8 @@ inline void *_malloc(size_t size) {
   void *ptr;
   int err;
   if ((err = posix_memalign(&ptr, getpagesize(), size))) {
-    fprintf(stderr, "malloc: couldn't allocate %ld bytes", size);
+    fprintf(stderr, "malloc: couldn't allocate %lu bytes", 
+       (unsigned long)size);
     perror("posix_memalign");
     exit(1);
   }
@@ -74,7 +76,8 @@ inline void *_malloc(size_t size) {
 inline void *_malloc_fast(size_t size) {
   void *ptr = malloc(size);
   if (ptr == NULL) {
-    fprintf(stderr, "malloc: couldn't allocate %ld bytes", size);
+    fprintf(stderr, "malloc: couldn't allocate %lu bytes", 
+       (unsigned long)size);
     perror("malloc");
     exit(1);
   }
@@ -84,7 +87,8 @@ inline void *_malloc_fast(size_t size) {
 inline void *_realloc(void *ptr, size_t size) {
   ptr = realloc(ptr, size);
   if (ptr == NULL) {
-    fprintf(stderr, "realloc: couldn't allocate %ld bytes", size);
+    fprintf(stderr, "realloc: couldn't allocate %lu bytes", 
+       (unsigned long)size);
     perror("realloc");
     exit(1);
   }
@@ -194,7 +198,7 @@ void _qt_insert(UFQuadTree *qt, TransNode *node, Item *item, Quadrant *q, unsign
     }
 
     _target_quadrant(quad, q);
-    _ensure_child_quad(qt, node, quad, item);
+    _ensure_child_quad(qt, node, quad);
     _qt_insert(qt, node->quadrants[quad], item, q, depth);
 
   } else {  /* $node is a leaf */
@@ -272,7 +276,7 @@ inline void _init_leaf_node(UFQuadTree *qt, TransNode *node) {
   qt->nleafs++;
 }
 
-inline void _ensure_child_quad(UFQuadTree *qt, TransNode *node, quadindex quad, Item *item) {
+inline void _ensure_child_quad(UFQuadTree *qt, TransNode *node, quadindex quad) {
 
   assert(node->is_inner);
 
@@ -333,7 +337,7 @@ void _split_node(UFQuadTree *qt, TransNode *node, const Quadrant *quadrant, unsi
     _nullify_quadrants(node->quadrants);
 
     Quadrant quadrant_;
-    int i;
+    unsigned int i;
     for (i=0; i<cpy.leaf.n; i++) {
       quadrant_ = *quadrant;
 
@@ -408,7 +412,7 @@ const QuadTree *qt_finalise(const UFQuadTree *qt_, const char *file) {
       exit(1);
     }
 
-    if (bytes != write(fd, mem, bytes)) {
+    if ((ssize_t)bytes != write(fd, mem, bytes)) {
       perror("write (qt_finalise)");
       exit(1);
     }
@@ -477,13 +481,13 @@ void _qt_finalise_leaf(FinaliseState *st) {
 
   st->next_leaf+= sizeof(Leaf) + st->cur_trans->leaf.n*sizeof(Item);
 
-  int i;
   TransNode *cur = st->cur_trans;
 
   Leaf *leaf = st->cur_node.as_leaf;
 
   leaf->n = cur->leaf.n;
 
+  unsigned int i;
   for (i=0; i<leaf->n; i++) {
     leaf->items[i] = *cur->leaf.items[i];
 
@@ -885,7 +889,9 @@ void _read_mem(void *mem, int fd, u_int64_t bytes) {
 
 
   if ((npages*pagesize + rest) != bytes) {
-    fprintf(stderr, "_read_mem: %ld*%d + %ld != %ld\n", npages, pagesize, rest, bytes);
+    fprintf(stderr,
+       "_read_mem: %" PRIu64 "*%d + %" PRIu64 " != %" PRIu64 "\n",
+       npages, pagesize, rest, bytes);
     exit(1);
   }
 
@@ -903,7 +909,8 @@ void _read_mem(void *mem, int fd, u_int64_t bytes) {
       perror("read (_read_mem)");
       exit(1);
     } else if (got != pagesize) {
-      fprintf(stderr, "unexpected return value from read: %ld:%d (_read_mem)", got, pagesize);
+      fprintf(stderr, "unexpected return value from read: %ld:%d (_read_mem)", 
+         (signed long)got, pagesize);
       exit(1);
     }
 
@@ -916,8 +923,10 @@ void _read_mem(void *mem, int fd, u_int64_t bytes) {
   if (got == -1) {
     perror("read (_read_mem)");
     exit(1);
-  } else if (got != rest) {
-    fprintf(stderr, "unexpected return value from read: %ld:%ld (_read_mem)", got, rest);
+  } else if (got != (ssize_t)rest) {
+    fprintf(stderr, 
+       "unexpected return value from read: %lu:%" PRIu64 " (_read_mem)",
+       (unsigned long)got, rest);
     exit(1);
   }
 
