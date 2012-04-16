@@ -61,3 +61,10 @@ TESTS = tests/checkqt
 
 check-local:
 	@rm -f _check.dat _benchmark.dat 2>/dev/null
+
+##
+## Help 
+##
+
+help:
+	@cat ../docs/make-help.txt

@@ -19,6 +19,16 @@ Distributing:
   dist-xz        - Create a tidy '.tar.xz' distribution
   dist-shar      - Create a tidy '.shar.gz' shell archive distribution
 
+Documentation:
+  html           - Generate paginated HTML documentation
+  pdf            - Generate a PDF book of our documentation
+  ps             - Generate a PostScript book of our documentation
+  dvi            - Generate a DVI version of our documentation
+  info           - Generate GNU info documentation
+
+  Use install-[format] to install the generated documentation.
+  A man page is installed automatically.
+
 Testing:
   check          - Run tests to confirm the library is working
   distcheck      - Test if `make dist` produces correct distributions

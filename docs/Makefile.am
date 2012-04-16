@@ -18,3 +18,8 @@ EXTRA_DIST = make-help.txt
 
 # Man page
 dist_man_MANS = libquadtree.3
+# Info page (does html/pdf/ps/..etc automatically)
+info_TEXINFOS = libquadtree.texi
+
+help:
+	@cat ../docs/make-help.txt
