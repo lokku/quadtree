@@ -7,13 +7,15 @@ config.log
 config.status
 configure
 libquadtree-*.*
-src/.deps/
-src/.libs/
 src/Makefile
 src/Makefile.in
 src/config.h*
 src/stamp-h1
+src/tests/benchmark
+src/tests/check
 libtool
+.deps/
+.libs/
 *.dirstamp
 
 # Ugh, this one requires special handling since git won't store a directory
