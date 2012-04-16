@@ -1,0 +1,3 @@
+libquadtree.*
+!libquadtree.3
+!libquadtree.texi
