@@ -43,6 +43,12 @@
 @setfilename libquadtree.info
 @settitle libquadtree - Quadtree Library
 
+
+@dircategory libquadtree - Quadtree Library
+@direntry
+* libquadtree: (libquadtree). A quadtree library
+@end direntry
+
 @titlepage
 @sp 10
 @center @titlefont{libquadtree - Quadtree Library}
@@ -74,9 +80,6 @@ be used in.
 This library is limited in several ways, in that all items must be inserted,
 and the quadtree finalised, before querying is allowed. After being finalised,
 items cannot be added or removed.
-.SS qt_create_quadtree ()
-This function creates and returns an unfinished quadtree (UFQuadTree), with
-which items can be added to, before it is finalised and ready for querying.
 
 @node    API, Example, Introduction, Top
 @cindex API
