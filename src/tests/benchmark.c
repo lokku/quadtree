@@ -23,14 +23,11 @@
 #include <assert.h>
 #include <time.h>
 
-
 #include "quadtree.h"
-#include "quadtree_private.h"
+#include "quadtree_portable.h"
 
-
-#define M (K*K)
 #define K 1000
-
+#define M (K*K)
 
 inline FLOAT rnd() {
   return ((FLOAT)rand())/((FLOAT)RAND_MAX);
@@ -38,8 +35,8 @@ inline FLOAT rnd() {
 
 void populate(UFQuadTree *qt, u_int64_t n) {
   ITEM i;
-  for (i=0; i<n; i++) {
 
+  for (i=0; i<n; i++) {
     Item item;
 
     item.value     = i;
@@ -53,15 +50,11 @@ void populate(UFQuadTree *qt, u_int64_t n) {
 
 
 void benchmark(const QuadTree *qt, int n, FLOAT radius, u_int64_t *total) {
-
   Quadrant region;
 
   int i;
   for (i=0; i<=n; i++) {
-
-
     u_int64_t maxn = 0;
-
 
     region.ne[X] = 1/2 + radius;
     region.ne[Y] = 1/2 + radius;
@@ -82,18 +75,13 @@ void benchmark(const QuadTree *qt, int n, FLOAT radius, u_int64_t *total) {
 }
 
 
-
-int main(int argc, char **argv) {
-
-
+int main(void) {
   int n_points  = M/2;
   int n_splits  = 2;
   int n_tests   = M;
   int n_buckets = 200;
 
   FLOAT init_radius = 1.0/64.0;
-
-
 
   Quadrant quadrant;
 
@@ -125,7 +113,7 @@ int main(int argc, char **argv) {
   end = clock();
   elapsed = ((double) (end - start)) / CLOCKS_PER_SEC;
 
-  printf("elapsed: %lf; total: %ld\n", elapsed, total);
+  printf("elapsed: %lf; total: %" PRIu64 "\n", elapsed, total);
 
 #ifndef NDEBUG
   printf("withins: %ld, nwithins: %ld\n", withins, nwithins);
@@ -135,3 +123,4 @@ int main(int argc, char **argv) {
 
   return 0;
 }
+

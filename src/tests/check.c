@@ -22,18 +22,12 @@
 #include <sys/types.h>
 #include <assert.h>
 
-
 #include "quadtree.h"
 #include "quadtree_private.h"
-
-
-
-
-
+#include "quadtree_portable.h"
 
 
 typedef struct {
-
   Quadrant region;
 
   u_int64_t n;
@@ -41,7 +35,6 @@ typedef struct {
 
   Item *items;
 } region;
-
 
 
 inline FLOAT rnd() {
@@ -85,8 +78,6 @@ void populate(UFQuadTree *qt, region *regions, short int nregions, ITEM n) {
   for (j=0; j<nregions; j++) {
     qsort(regions[j].items, regions[j].n, sizeof(Item), (__compar_fn_t)_itemcmp_direct);
   }
-
-
 }
 
 void free_regions(region *regions, short int nregions) {
@@ -96,7 +87,7 @@ void free_regions(region *regions, short int nregions) {
   free(regions);
 }
 
-void populate_regions(UFQuadTree *qt, region *regions, short int nregions) {
+void populate_regions(region *regions, short int nregions) {
   int i,j;
   for (i=0; i<nregions; i++) {
 
@@ -146,20 +137,21 @@ u_int64_t check(const QuadTree *qt, const region *regions, short int nregions) {
     /* Check the number of records returned */
     if (maxn != regions[i].n) {
       errors+= regions[i].n;
-      printf("error: got %ld records, expected %ld\n", maxn, regions[i].n);
+      printf("error: got %" PRIu64 " records, expected %" PRIu64 "\n",
+         maxn, regions[i].n);
 
-      int j;
+      unsigned int j;
       u_int64_t ncorrect=0;
       for (j=0; j<maxn; j++) {
         if (!in_quadrant(items[j], &regions[i].region)) {
-          printf("error: { value = %ld, x = %lf, y = %lf }\n",
+          printf("error: { value = %" PRIu64 ", x = %lf, y = %lf }\n",
                items[j]->value, items[j]->coords[0], items[j]->coords[1]);
         } else {
           ncorrect++;
         }
       }
 
-      printf("ncorrect: %ld\n\n\n\n", ncorrect);
+      printf("ncorrect: %" PRIu64 "\n\n\n\n", ncorrect);
 
 
 
@@ -168,13 +160,13 @@ u_int64_t check(const QuadTree *qt, const region *regions, short int nregions) {
 
 
     /* Compare results with expected results */
-    int j;
+    unsigned int j;
     for (j=0; j<maxn; j++) {
       if (0 != _itemcmp_direct(items[j], &regions[i].items[j])) {
         errors++;
       } else {
-        /*        printf("correct: { value = %ld, x = %lf, y = %lf }\n",
-                  items[j]->value, items[j]->coords[0], items[j]->coords[1]); */
+        /* printf("correct: { value = %ld, x = %lf, y = %lf }\n",
+           items[j]->value, items[j]->coords[0], items[j]->coords[1]); */
       }
     }
 
@@ -189,7 +181,7 @@ u_int64_t check(const QuadTree *qt, const region *regions, short int nregions) {
 
 
 
-int main(int argc, char **argv) {
+int main(void) {
 
   Quadrant quadrant;
   u_int64_t errors = 0;
@@ -205,7 +197,7 @@ int main(int argc, char **argv) {
 
   region *regions = malloc(sizeof(region) * nregions);
 
-  populate_regions(ufqt, regions, nregions);
+  populate_regions(regions, nregions);
 
   populate(ufqt, regions, nregions, 99999);
 
@@ -214,7 +206,7 @@ int main(int argc, char **argv) {
 
   errors += check(qt, regions, nregions);
 
-  printf("%ld errors\n", errors);
+  printf("%" PRIu64 " errors\n", errors);
   printf("qt_free()ing and qt_load()ing...\n");
 
   qt_free((QuadTree *)qt);
@@ -231,7 +223,7 @@ int main(int argc, char **argv) {
 #endif
 
   if (errors) {
-    printf("errors: %ld\n", errors);
+    printf("errors: %" PRIu64 "\n", errors);
     exit(!!errors);
   }
 
