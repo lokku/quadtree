@@ -67,9 +67,63 @@ LT_INIT
 dnl Check for standard headers
 AC_HEADER_STDC
 
-dnl Library Stuff
+dnl Types
 AC_TYPE_SIZE_T
-AC_FUNC_MALLOC
+AC_TYPE_UINT64_T
+AC_TYPE_UNSIGNED_LONG_LONG_INT
+
+
+dnl See if we have bits/wordsize.h, or find the wordsize
+AC_CHECK_HEADERS([bits/wordsize.h],
+                 [],
+                 [],
+                 [#include <bits/wordsize.h>
+                 ])
+AC_LANG_PUSH([C])
+if test x"$cross_compiling" = x"no" ; then
+   AC_MSG_CHECKING([for the wordsize])
+fi
+AC_RUN_IFELSE([AC_LANG_PROGRAM([[]],
+                  [[if (sizeof(void *) == 16) {
+                        return 16;
+                    } else if (sizeof(void *) == 32) {
+                        return 32;
+                    } else if (sizeof(void *) == 64) {
+                        return 64;
+                    }
+                  ]])],
+                  [WORDSIZE=32], dnl never reached
+                  [WORDSIZE=$?],
+                  [WORDSIZE=32]) dnl Assume 32-bit for cross-compiling
+AC_LANG_POP([C])
+if test x"$cross_compiling" = x"no" ; then
+   AC_MSG_RESULT([$WORDSIZE])
+fi
+AC_DEFINE_UNQUOTED(MACHINE_WORDSIZE, [$WORDSIZE], [Word size of the machine])
+
+dnl See if we support long long unsigned's and their printing
+AC_LANG_PUSH([C])
+AC_MSG_CHECKING([whether printf supports the llu format specifier])
+AC_RUN_IFELSE([AC_LANG_PROGRAM([[
+                #include <stdio.h>
+                #include <string.h>
+              ]],
+              [[char out[10];
+                int ret = sprintf(out, "%llu", (unsigned long long)1984);
+                if (ret < 0 || strcmp(out, "1984")) {
+                   return 1;
+                }
+              ]])],
+              [HAS_LLU=1],
+              [HAS_LLU=0],
+              [HAS_LLU=0]) # Assume we don't have it for cross-compiling
+AC_LANG_POP([C])
+if test x"$HAS_LLU" == x"1" ; then
+   AC_MSG_RESULT([yes])
+   AC_DEFINE(HAVE_PRINTF_LLU, [1], [Supports printf %llu specifier])
+else
+   AC_MSG_RESULT([no])
+fi
 
 dnl And we're done
 AC_OUTPUT
