@@ -29,6 +29,7 @@ AM_CFLAGS = -Wall -W
 
 lib_LTLIBRARIES = libquadtree.la
 libquadtree_la_SOURCES = quadtree.c quadtree_private.h
+libquadtree_la_SOURCES += quadtree_portable.h
 libquadtree_ladir = ${libdir}
 libquadtree_la_LDFLAGS = -version-info ${QUADTREE_LIB_VERSION}
 
