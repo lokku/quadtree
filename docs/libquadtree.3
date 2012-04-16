@@ -1,23 +1,303 @@
+.ig
+
+Copyright (C) 2011-2012 Lokku ltd. and contributors
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+------------------------------------------------------------
+
+This file is hand-written, and attempts to follow the conventions of most other
+section 3 man pages (i.e please keep the style the same!). When making
+additions, the surrounding code should give you a good idea of how to do
+things. For further info, the groff manual is a good resource:
+
+   http://www.gnu.org/software/groff/manual/
+
+Note that this file is completely separate from the Texinfo file
+libquadtree.texi, which should also be kept up-to-date.
+
+NOTE: More detailed documentation belongs in the Texinfo file, NOT this
+manpage. The only changes here should be API updates etc, keep it small.
+
+..
 .TH LIBQUADTREE "3" "April 12th, 2012" "libquadtree 1.1" "libquadtree - Fast quadtree implementation"
 
 .SH NAME
 libquadtree - Fast quadtree library
 .SH SYNOPSIS
+.nf
 .B #include <quadtree.h>
 .sp
 .BI "UFQuadTree *qt_create_quadtree(Quadrant *" region ",
-.BI                                 BUCKETSIZE " maxfill ");
+.BI "                   BUCKETSIZE " maxfill ");
+.BI "void qt_insert(UFQuadTree *" quadtree ",
+.BI "                   const Item *" item ");
+.BI "const QuadTree *qt_finalise(const UFQuadTree *" quadtree ",
+.BI "                   const char *" file ");
+.sp
+.BI "const Quadtree *qt_load(const char *" file ");
+.sp
+.BI "Item **qt_query_ary(const Quadtree *" quadtree ",
+.BI "                   const Quadrant *" region ",
+.BI "                   u_int64_t *" maxn ");
+.BI "Item **qt_query_ary_fast(const Quadtree *" quadtree ",
+.BI "                   const Quadrant *" region ",
+.BI "                   u_int64_t *" maxn ");
+.sp
+.BI "Qt_Iterator *qt_query_itr(const QuadTree *" quadtree ",
+.BI "                   const Quadrant *" region ");
+.BI "Item *qt_itr_next(Qt_Iterator *" itr ");
+.sp
+.BI "void qtuf_free(UFQuadTree *" quadtree ");"
+.BI "void   qt_free(QuadTree *" quadtree ");"
+.fi
+.sp
 .SH DESCRIPTION
-The quadtree library is...
+libquadtree is a fast implementation of a quadtree, a tree-like data structure
+that allows for quick lookup of points in a two dimensional plane. The API is
+presented below, with the functions roughly in the order they would typically
+be used in.
+
+This library is limited in several ways, in that all items must be inserted,
+and the quadtree finalised, before querying is allowed. After being finalised,
+items cannot be added or removed.
+.SS qt_create_quadtree ()
+This function creates and returns an unfinished quadtree (UFQuadTree), with
+which items can be added to, before it is finalised and ready for querying.
+.PP
+.TP
+.BI "Quadrant *" region ":
+A quadrant of the form:
+.in +3n
+.sp
+.nf
+struct Quadrant {
+  double ne[2];
+  double sw[2];
+};
+.fi
+.ig
+\" TODO: Hrmm, something like this?
+.in
+.sp
+where each region represents an axis as follows:
+.sp
+.in +3n
+.nf
+ +---------+
+ |    a    |    a -> ne[Y]
+ |    a    |    b -> ne[X]
+ +dddd+bbbb+    c -> sw[Y]
+ |    c    |    d -> sw[X]
+ |    c    |
+ +----+----+
+.fi
+.in
+..
+.TP
+.BI "BUCKETSIZE " maxfill ":
+The maximum number of Items per bucket before a split is done, by further
+subdividing the bucket into four smaller quadrants.
+.SS qt_insert ()
+This function inserts an item into an unfinished quadtree created by
+\fIqt_create_quadtree\fR(). It returns nothing.
+.PP
+.TP
+.BI "UFQuadTree *" quadtree ":
+The unfinished quadtree, created by \fIqt_create_quadtree\fR(), in which insert
+an item into.
+.BI "const Item *" item ":
+The item to insert. Once inserted, the item can be free(3)'d immediately. Each
+item has the following structure, where \fIcoords\fR represents an x and y
+pair:
+.in +3n
+.sp
+.nf
+struct Item {
+  u_int64_t value;
+  double coords[2];
+};
+.fi
+.in
+.SS qt_finalise ()
+This function finalises an unfinished quadtree, returning a Quadtree structure
+that can be queried. The structure can optionally be written to a file, to be
+read back later by \fIqt_load\fR(). Note that the UFQuadTree still uses memory,
+until passed to \fIqtuf_free\fR().
+.PP
+.TP
+.BI "const UFQuadTree *" quadtree ":
+The unfinished quadtree, created by \fIqt_create_quadtree\fR(), with all items
+already inserted. Once finalised, the quadtree will be able to be queried, but
+new items will not be able to be inserted.
+.TP
+.BI "const char *" file ":
+If not NULL, \fIfile\fR should specify a filename for the quadtree to be
+written to. Note that the quadtree will be returned regardless of whether you
+specify a filename, so you may wish to use \fIqt_free\fR() depending on your
+usage scenario. 
+.SS qt_load ()
+This function loads a quadtree from a file previously written by
+\fIqt_finalise\fR(), and returns that quadtree for use.
+.PP
+.TP
+.BI "const char *" file ":
+The filename to load the quadtree from.
+.SS qt_query_ary (), qt_query_ary_fast ()
+This function is used to query items in a quadtree. It returns an array of
+\fIItem\fRs from a specified region in the quadtree, with an optional maximum.
+The function makes no guarantees about the ordering and selection of items.
+.sp
+The two functions have similar functionality. The fast variant will run in less
+time, but may return a worse selection of items.
+.PP
+.TP
+.BI "const Quadtree *" quadtree ":
+The finalised quadtree to query.
+.TP
+.BI "const Quadrant *" region ":
+The region to look for items in. See the description of
+\fIqt_create_quadtree\fR() above, which shows the structure of a Quadrant.
+.TP
+.BI "u_int64_t *" maxn ":
+This specifies the maximum number of items to return. If 0, all items in the
+quadrant are returned. Before returning, the number of items actually returned
+(less or equal to the number of items requested) will be put into \fImaxn\fR.
+.SS qt_query_itr ()
+This function returns an iterator for a quadrant of a quadtree. The iterator
+can be used to loop through each item in the quadrant, in no particular order.
+.PP
+.TP
+.BI "const QuadTree *" quadtree ":
+The finalised quadtree to query.
+.TP
+.BI "const Quadrant *" region ":
+The quadrant that you wish to iterate through. See the description of
+\fIqt_create_quadtree\fR above for a description of the Quadrant structure.
+.SS qt_itr_next ()
+Returns a pointer to the next item from an iterator. Once called, the iterator
+will be incremented. You can only go forward, and not backwards. After the last
+item has been returned, the next call will return NULL. Once this happens, the
+iterator will be free'd, and it is an error to call \fIqt_itr_next\fR() again
+with the same iterator.
+.PP
+.TP
+.BI "Qt_Iterator *" itr ":
+The iterator returned by a call to \fIqt_quer_itr\fR().
+.SS qtuf_free ()
+Free the memory allocated to an unfinished quadtree created by
+\fIqt_create_quadtree\fR(). This function should be called after
+\fIqt_finalise\fR(), which doesn't free its \fIUFQuadTree\fR argument.
+.PP
+.TP
+.BI "UFQuadTree *" quadtree ":
+The unfinished quadtree to free.
+.SS qt_free ()
+Free the memory allocated to a finished quadtree returned by 
+\fIqt_finalise\fR(), or loaded by \fIqt_load\fR(). 
+.PP
+.TP
+.BI "QuadTree *" quadtree ":
+The finished quadtree to free.
 .SH EXAMPLE
+.nf
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <quadtree.h>
+
+inline FLOAT rnd() {
+  return ((FLOAT)rand())/((FLOAT)RAND_MAX);
+}
+
+int main(void) {
+   /* Set up quadrant */
+   Quadrant quadrant;
+   quadrant.ne[X] = 1;
+   quadrant.ne[Y] = 1;
+   quadrant.sw[X] = 0;
+   quadrant.sw[Y] = 0;
+
+   /* Create unfinalised quadtree with bucket size 200 */
+   UFQuadTree *ufqt = qt_create_quadtree(&quadrant, 200);
+
+   /* Populate with 500,000 items */
+   int i;
+   for (i=0; i<500000; i++) {
+      Item item;
+      item.value = i;
+      item.coords[0] = rnd();
+      item.coords[1] = rnd();
+      qt_insert(ufqt, &item);
+   }
+
+   /* Finalise and write to a file */
+   const QuadTree *qt = qt_finalise(ufqt, "_benchmark.dat");
+
+   /* Free the unfinalised tree */
+   qtuf_free(ufqt);
+
+   /* Free the tree returned by qt_finalise */
+   qt_free((QuadTree *)qt);
+
+   /* Read the tree back in from the file */
+   qt = qt_load("_benchmark.dat");
+
+   /* Keep a total of queried items */
+   u_int64_t total = 0;
+
+   /* 10,000 queries */
+   FLOAT radius = 1.0/64.0;
+   for (i=0; i<10000; i++) {
+      /* Quadrant to query */
+      Quadrant region;
+      region.ne[X] = 1/2 + radius;
+      region.ne[Y] = 1/2 + radius;
+      region.sw[X] = 1/2 - radius;
+      region.sw[Y] = 1/2 - radius;
+
+      /* Return an unlimited number of items */
+      u_int64_t maxn = 0;
+
+      /* Query quadtree */
+      Item **items = qt_query_ary_fast(qt, &region, &maxn);
+
+      /* The number of items returned is put into maxn */
+      total += maxn;
+
+      /* Free memory */
+      free(items);
+
+      /* Change search radius */
+      radius /= 2;
+   }
+
+   printf("Queried a total of %lu items\\n", (unsigned  long)total);
+
+   /* Free the tree */
+   qt_free((QuadTree *)qt);
+
+   return 0;
+}
+.fi
 .SH AUTHORS
 Written at Lokku ltd <opensource@lokku.com>
-
 .SH COPYRIGHT
 Copyright (C) 2011-2012 Lokku ltd. and contributors
 .P
 License: GPLv2+: GNU GPL version 2 or later <http://gnu.org/licenses/gpl.html>. This is free software: you are free to change and redistribute it. There is NO WARRANTY, to the extent permitted by law.
-
 .SH SEE ALSO
 Project homepage:  <https://www.github.com/darksmo/quadtree>
 .br
