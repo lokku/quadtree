@@ -7,4 +7,6 @@ Changes in 1.1
 ~~~~~~~~~~~~~~~
    - New build system (the familiar `./configure && make && make install')
    - Added README/AUTHORS/ChangeLog/NEWS/INSTALL help files
-   - Added a basic manpage
+   - Added a full manpage
+   - Added info, PDF, PS, DVI and HTML documentation
+   - Fixed all compiler warnings

@@ -11,7 +11,9 @@ TABLE OF CONTENTS
 Introduction
 ~~~~~~~~~~~~
 libquadtree is a fast implementation of a quadtree datastructure, optimized for
-AMD64.
+AMD64. The man page for the library has a detailed description of the API, with
+usage examples. This can be viewed by running `man docs/libquadtree.3' in the
+source directory, or by running `man 3 libquadtree' after installation.
 
 Building & Installing
 ~~~~~~~~~~~~~~~~~~~~~

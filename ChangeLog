@@ -1,3 +1,19 @@
+2012-04-16 Vincent Launchbury <vincent@lokku.com>
+	* docs/libquadtree.texi: Wrote texinfo documentation currently only as
+	detailed as the manpage, but with room for additions. This automatically
+	gives us PDF/PS/DVI/info/HTML documentation.
+	* docs/libquadtree.3: Wrote a full manpage for libquadtree
+	* README.maintainer: Added new notes about documentation.
+2012-04-15 Vincent Launchbury <vincent@lokku.com>
+	* configure.ac: Added portability checks for unsigned long long and its
+	printf support, as well as a test for the wordsize when not cross-compiling.
+	* src/quadtree_portable.h: Added new header that defines PRIu64 for portably
+	printing u_int64_t types.
+	* src/quadtree.c: Fixed several compiler warnings relating to printing
+	u_int64_t values, comparing unsigned with signed, and printing size_t
+	values.
+	* src/quadtree.h, src/quadtree_private.h: Fixed warnings here too.
+	* src/tests/benchmark.c, src/tests/check.c: Fixed warnings here too.
 2012-04-13 Vincent Launchbury <vincent@lokku.com>
 	* GNU autotoolized the project
 		- Now uses the traditional './configure && make && make install' toolchain

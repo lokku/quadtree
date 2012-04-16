@@ -36,10 +36,16 @@ NOTES
       detail.) Update the NEWS file with a much briefer summary including only
       user-oriented changes (i.e for people using the library, not hacking it.)
 
-      d) If the API has changed, update the manpage synopsis and examples to
-      reflect the latest version.
+      d) If the API has changed, do a full update of the manpage, including the
+      synopsis, the detailed descriptions and any affected examples. HTML
+      documentation is also generated from the manpage source
+      `docs/libquadtree.3'. Nobody likes out-of-date documentation!
 
-      e) Follow NOTE-4 below to create a tarball to distribute.
+      e) Also keep the texinfo file `docs/libquadtree.texi' up-to-date, it is
+      used to generate PDF/PS/HTML/DVI/info documentation. Feel free to add
+      content to that more liberally than you would the man page.
+      
+      f) Follow NOTE-4 below to create a tarball to distribute.
 
 4) Making a tarball to distribute:
       a) Build the package:
@@ -58,7 +64,8 @@ NOTES
 
       This will run tests and generate distributions with the default archive
       formats (as specified in `configure.ac'.) See `make help` for a full list
-      of available formats.
+      of available formats. Once successfully completed, the `make distcheck`
+      command will output a list of archives it has generated for you.
 
 5) Shared object versioning
       The configuration for the shared object versioning is in the file
