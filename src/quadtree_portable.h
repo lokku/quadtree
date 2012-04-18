@@ -49,7 +49,7 @@
 #     endif /* PRIu64 */
 #  else /* __WORDSIZE != 64 */
 #     ifndef PRIu64
-#        ifdef HAVE_UNSIGNED_LONG_LONG_INT && HAVE_PRINTF_LLU
+#        if defined(HAVE_UNSIGNED_LONG_LONG_INT) && defined(HAVE_PRINTF_LLU)
 #           define PRIu64 "llu"
 #        else /* !HAVE_PRINTF_LLU */
 #           define PRIu64 "lu"
