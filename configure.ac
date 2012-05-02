@@ -15,8 +15,8 @@ dnl You should have received a copy of the GNU General Public License along
 dnl with this program; if not, write to the Free Software Foundation, Inc.,
 dnl 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-dnl Autoconf 2.68 required to build
-AC_PREREQ([2.68])
+dnl Autoconf 2.67 required to build
+AC_PREREQ([2.67])
 
 dnl Version number of source code
 AC_INIT([libquadtree], [1.1], [opensource@lokku.com])
