@@ -24,9 +24,7 @@
 #include "quadtree.h"
 
 
-
 typedef void Node;
-
 
 struct _Inner;
 struct _Leaf;
@@ -39,9 +37,6 @@ typedef struct _Inner           Inner;
 typedef struct _Leaf            Leaf;
 typedef struct _FinaliseState   FinaliseState;
 typedef struct _Qt_Itr_Frame    Qt_Itr_Frame;
-
-
-
 
 
 /*
@@ -92,10 +87,7 @@ struct _TransNode {
 };
 
 
-
-
 struct UFQuadTree {
-
   TransNode *root;
 
   Quadrant region;
@@ -107,7 +99,6 @@ struct UFQuadTree {
 
   u_int64_t ninners;
   u_int64_t nleafs;
-
 };
 
 
@@ -166,9 +157,7 @@ struct Qt_Iterator {
 };
 
 
-
 struct _FinaliseState {
-
   const QuadTree *quadtree;
 
   u_int64_t ninners;
@@ -182,7 +171,6 @@ struct _FinaliseState {
   void *next_leaf;
 
   TransNode *cur_trans;
-
 };
 
 
@@ -197,7 +185,6 @@ inline void _qt_finalise(FinaliseState *st);
 inline void _include_leaf(Item ***items, u_int64_t *offset, u_int64_t *size, Leaf *leaf, Quadrant *region,_Bool within);
 inline void _gen_quadrants(const Quadrant *region, Quadrant *mem);
 
-
 void  _qt_insert(UFQuadTree *qt, TransNode *node, Item *item, Quadrant *quadrant, unsigned int depth);
 int   _itemcmp(Item **a, Item **b);
 int   _itemcmp_direct(Item *a, Item *b);
@@ -207,8 +194,6 @@ void  _free_itr(Qt_Iterator *itr);
 void  _mk_quadtree(QuadTree *new, const UFQuadTree *from);
 void _read_mem(void *mem, int fd, u_int64_t bytes);
 u_int64_t _mem_size(const UFQuadTree *qt);
-
-
 
 
 /*
@@ -229,9 +214,6 @@ u_int64_t _mem_size(const UFQuadTree *qt);
  *
  ***************/
 
-
-
-
 #define NORTH(x) ((x) = (x) & NE)
 #define SOUTH(x) ((x) = (x) | SW)
 #define  EAST(x) ((x) = (x) | NE)
@@ -239,13 +221,8 @@ u_int64_t _mem_size(const UFQuadTree *qt);
 
 #define ISSOUTH(x) ((x) & SW)
 #define ISNORTH(x) (!ISSOUTH(x))
-
 #define ISEAST(x)  ((x) & NE)
 #define ISWEST(x)  (!ISEAST(x))
-
-
-
-
 
 #define OVERLAP(qA, qB)                                         \
   (                                                             \
@@ -264,13 +241,9 @@ u_int64_t _mem_size(const UFQuadTree *qt);
   )
 
 
-
 #define ASSERT_REGION_SANE(region)            \
   assert((region)->ne[X] > (region)->sw[X]);  \
   assert((region)->ne[Y] > (region)->sw[Y]);
-
-
-
 
 
 #define IS_LEAF(quadtree, node)  \
@@ -278,7 +251,6 @@ u_int64_t _mem_size(const UFQuadTree *qt);
 
 #define IS_INNER(quadtree, node) \
   !IS_LEAF(quadtree, node)
-
 
 
 #define MEM_INNERS(quadtree) ((void *)(((void *)(quadtree))+sizeof(QuadTree)))
@@ -290,14 +262,9 @@ u_int64_t _mem_size(const UFQuadTree *qt);
   div_y = (region)->sw[Y] + ((region)->ne[Y] - (region)->sw[Y]) / 2;
 
 
-
-
 #define MEM_ROOT(quadtree) MEM_INNERS(quadtree)
 
 #define ROOT ((u_int64_t)0)
-
-
-
 
 #define FRAME(itr,so)     ((itr)->stack[so])
 #define NEXTFRAME(itr,so) ((itr)->stack[so+1])
