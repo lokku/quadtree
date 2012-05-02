@@ -150,7 +150,6 @@ struct _Qt_Itr_Frame {
 
 
 struct Qt_Iterator {
-
   Qt_Itr_Frame *stack;
 
   Leaf *lp;  /* leaf pointer: Not an optimisation for a good compiler,
@@ -164,7 +163,6 @@ struct Qt_Iterator {
   Quadrant region;
 
   const QuadTree *quadtree;
-
 };
 
 
@@ -204,7 +202,6 @@ void  _qt_insert(UFQuadTree *qt, TransNode *node, Item *item, Quadrant *quadrant
 int   _itemcmp(Item **a, Item **b);
 int   _itemcmp_direct(Item *a, Item *b);
 void  _split_node(UFQuadTree *qt, TransNode *node, const Quadrant *quadrant, unsigned int depth);
-void  _init_root(UFQuadTree *qt);
 void  _itr_next_recursive(Qt_Iterator *itr);
 void  _free_itr(Qt_Iterator *itr);
 void  _mk_quadtree(QuadTree *new, const UFQuadTree *from);
