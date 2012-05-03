@@ -1,16 +1,16 @@
 /*
  * Copyright (C) 2011-2012 Lokku ltd. and contributors
- *
+ * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
@@ -70,7 +70,7 @@ inline void *_malloc(size_t size)
     void *ptr;
     int err;
     if ((err = posix_memalign(&ptr, getpagesize(), size))) {
-        fprintf(stderr, "malloc: couldn't allocate %lu bytes",
+        fprintf(stderr, "malloc: couldn't allocate %lu bytes", 
             (unsigned long)size);
         perror("posix_memalign");
         exit(1);
@@ -82,7 +82,7 @@ inline void *_malloc_fast(size_t size)
 {
     void *ptr = malloc(size);
     if (ptr == NULL) {
-        fprintf(stderr, "malloc: couldn't allocate %lu bytes",
+        fprintf(stderr, "malloc: couldn't allocate %lu bytes", 
             (unsigned long)size);
         perror("malloc");
         exit(1);
@@ -94,7 +94,7 @@ inline void *_realloc(void *ptr, size_t size)
 {
     ptr = realloc(ptr, size);
     if (ptr == NULL) {
-        fprintf(stderr, "realloc: couldn't allocate %lu bytes",
+        fprintf(stderr, "realloc: couldn't allocate %lu bytes", 
             (unsigned long)size);
         perror("realloc");
         exit(1);
@@ -106,12 +106,15 @@ inline void *_realloc(void *ptr, size_t size)
 /* Check if item is in a quadrand */
 inline bool in_quadrant(const Item *i, const Quadrant *q)
 {
-    return ((i->coords[X] >= q->sw[X]) && (i->coords[X] <= q->ne[X]) &&
-        (i->coords[Y] >= q->sw[Y]) && (i->coords[Y] <= q->ne[Y]));
+    return ((i->coords[X] >= q->sw[X]) 
+            && (i->coords[X] <= q->ne[X])
+            && (i->coords[Y] >= q->sw[Y]) 
+            && (i->coords[Y] <= q->ne[Y])
+    );
 }
 
 
-/* Create an unfinished quadtree that we can add items to. */
+/* Create an unfinished quadtree that we can add items to */
 UFQuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill)
 {
     UFQuadTree *qt = (UFQuadTree *)_malloc_fast(sizeof(UFQuadTree));
@@ -165,11 +168,12 @@ void qt_insert(UFQuadTree *qt, const Item *item)
  * Note: *quadrant _is_ modified, but after _qt_insert returns, it is no longer
  * needed (i.e., it's safe to use the address of an auto variable.)
  */
-void _qt_insert(UFQuadTree *qt, TransNode *node, Item *item, Quadrant *q,
-    unsigned int depth)
+void _qt_insert(UFQuadTree *qt, TransNode *node, Item *item, Quadrant *q, 
+    unsigned int depth) 
 {
-    if (++depth > qt->maxdepth)
+    if (++depth > qt->maxdepth) {
         qt->maxdepth = depth;
+    }
 
 RESTART:
 
@@ -184,7 +188,7 @@ RESTART:
         CALCDIVS(div_x, div_y, q);
 
         /*
-         * Calculate the child quadrant. If item is exactly
+         * Calculate the child quadrant. If item is exactly 
          * on a boundary, choose north/east over south/west.
          */
         if (item->coords[X] >= div_x) {
@@ -222,8 +226,9 @@ RESTART:
         _ensure_bucket_size(qt, node, q, depth);
 
         /* Bucket was full, leaf became inner, go again */
-        if (node->is_inner)
+        if (node->is_inner) {
             goto RESTART;
+        }
 
         /* Do actual insert */
         node->leaf.items[node->leaf.n++] = item;
@@ -288,7 +293,7 @@ inline void _init_leaf_node(UFQuadTree *qt, TransNode *node)
 }
 
 /*
- * Ensures the node is suitably split so that it can accept _another_ item
+ * Ensures the node is suitably split so that it can accept _another_ item 
  * (i.e., the item hasn't been inserted yet -- node->leaf.n has not been
  * incremented).
  *
@@ -310,10 +315,12 @@ inline void _ensure_bucket_size(UFQuadTree *qt, TransNode *node,
     /* Could be changed by _split_node() */
     if (!node->is_inner) {
         assert(node->leaf.items != NULL);
+        assert(malloc_usable_size(node->leaf.items) 
+            >= sizeof(*node->leaf.items)*node->leaf.n+1
+        );
         assert(malloc_usable_size(node->leaf.items)
-            >= sizeof(*node->leaf.items)*node->leaf.n+1);
-        assert(malloc_usable_size(node->leaf.items)
-            >= sizeof(*node->leaf.items)*node->leaf.size);
+            >= sizeof(*node->leaf.items)*node->leaf.size
+        );
     }
 #endif
 }
@@ -326,7 +333,7 @@ void _split_node(UFQuadTree *qt, TransNode *node, const Quadrant *quadrant,
     if (!_distinct_items_exist(node)) {
         /* All items are the same, we cannot further split the node */
         node->leaf.size *= 2;
-        node->leaf.items =
+        node->leaf.items = 
             _realloc(node->leaf.items, node->leaf.size*sizeof(Item *));
     }
     else {
@@ -475,13 +482,13 @@ void _qt_finalise_inner(FinaliseState *st)
             inner->quadrants[i] = ROOT;
         }
         else {
-            /*
+            /* 
              * Note: ((Inner *)MEM_INNERS(qt))[st->ninners] is the _next_
              * node to be finalised (i.e., _not_ this one.)
              */
-            st->cur_node.as_void = st->cur_trans->is_inner ?
-                (void *) &((Inner *)MEM_INNERS(st->quadtree))[st->ninners] :
-                (void *) st->next_leaf;
+            st->cur_node.as_void = st->cur_trans->is_inner
+                ? (void *) &((Inner *)MEM_INNERS(st->quadtree))[st->ninners]
+                : (void *) st->next_leaf;
 
             inner->quadrants[i] =
                 st->cur_node.as_void - MEM_INNERS(st->quadtree);
@@ -561,7 +568,7 @@ ENTER:
         return NULL;
     }
 
-    /*
+    /* 
      * Cunning use of '*' instead of '&&' to avoid a pipeline stall.
      * Note that no shortcutting is done, so the second operand to '*'
      * is always evaluated, regardless of the outcome of the first,
@@ -663,7 +670,7 @@ RECURSE:
                 /* Recurse.
                  *
                  * post-conditions:
-                 *   * itr->stack[itr->so].quadrant
+                 *   * itr->stack[itr->so].quadrant 
                  *      has _not_ been traversed yet.
                  *   * itr->stack[itr->so -1].quadrant
                  *      has _not_ been traversed yet.
@@ -684,9 +691,9 @@ NEXTQUADRANT:
         so--;
         itr->so = so;
 
-        if (itr->so >= 0)
+        if (itr->so >= 0) {
             FRAME(itr,so).quadrant++;
-
+        }
     }
 
     assert(itr->so == -1);
@@ -784,11 +791,12 @@ Item **qt_query_ary_fast(const QuadTree *quadtree, const Quadrant *region,
     u_int64_t i=0;
     while (itr->lp != NULL) {
         /* At most maxn items */
-        if ((*maxn != 0) && (i >= *maxn))
+        if ((*maxn != 0) && (i >= *maxn)) 
             break;
 
         _include_leaf(&items, &i, &alloced, itr->lp, &itr->region,
-            itr->stack[itr->so].within_parent);
+            itr->stack[itr->so].within_parent
+        );
 
         itr->so--;
         itr->stack[itr->so].quadrant++;
@@ -833,13 +841,13 @@ inline void _include_leaf(Item ***items, u_int64_t *offset, u_int64_t *size,
         withins++;
 #endif
 
-        /*
+        /* 
          * It would be so cool to bypass the L2 cache right now, writing direct
          * to memory
          */
-        for (i=0; i<leaf->n; i++)
+        for (i=0; i<leaf->n; i++) {
             itemsv[offsetv + i] = addr+i;
-
+        }
     }
     else {
 #ifndef NDEBUG
@@ -848,8 +856,9 @@ inline void _include_leaf(Item ***items, u_int64_t *offset, u_int64_t *size,
 
         u_int64_t j;
         for (i=0, j=0; j<leaf->n; j++) {
-            if (in_quadrant(addr+j, quadrant))
+            if (in_quadrant(addr+j, quadrant)) {
                 itemsv[offsetv + i++] = addr+j;
+            }
         }
     }
 
@@ -860,7 +869,7 @@ inline void _include_leaf(Item ***items, u_int64_t *offset, u_int64_t *size,
 /* Read a file into memory  */
 void _read_mem(void *mem, int fd, u_int64_t bytes)
 {
-    /*
+    /* 
      * This is the page size of the virtual memory pages, not the
      * filesystem or IO device pages. It also happens that I don't
      * care --- I just needed a reasonable block size to read.
@@ -890,7 +899,7 @@ void _read_mem(void *mem, int fd, u_int64_t bytes)
             exit(1);
         }
         else if (got != pagesize) {
-            fprintf(stderr, "unexpected retval from read: %ld:%d (_read_mem)",
+            fprintf(stderr, "unexpected retval from read: %ld:%d (_read_mem)", 
                 (signed long)got, pagesize);
             exit(1);
         }
@@ -909,7 +918,7 @@ void _read_mem(void *mem, int fd, u_int64_t bytes)
         exit(1);
     }
     else if (got != (ssize_t)rest) {
-        fprintf(stderr,
+        fprintf(stderr, 
             "unexpected return value from read: %lu:%" PRIu64 " (_read_mem)",
             (unsigned long)got, rest);
         exit(1);
