@@ -1,16 +1,16 @@
 /*
  * Copyright (C) 2011-2012 Lokku ltd. and contributors
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
@@ -75,13 +75,16 @@ extern void qtuf_free(UFQuadTree *quadtree);
 
 /* qt_insert: item can be free()d immediately after qt_insert */
 extern void qt_insert(UFQuadTree *quadtree, const Item *item);
-extern const QuadTree *qt_finalise(const UFQuadTree *quadtree, const char *file);
+extern const QuadTree *qt_finalise(const UFQuadTree *quadtree,
+       const char *file);
 
+extern Item **qt_query_ary(const QuadTree *quadtree, const Quadrant *region,
+       u_int64_t *maxn);
+extern Item **qt_query_ary_fast(const QuadTree *quadtree,
+       const Quadrant *region, u_int64_t *maxn);
 
-extern Item **qt_query_ary(const QuadTree *quadtree, const Quadrant *region, u_int64_t *maxn);
-extern Item **qt_query_ary_fast(const QuadTree *quadtree, const Quadrant *region, u_int64_t *maxn);
-
-extern Qt_Iterator *qt_query_itr(const QuadTree *quadtree, const Quadrant *region);
+extern Qt_Iterator *qt_query_itr(const QuadTree *quadtree,
+       const Quadrant *region);
 extern Item *qt_itr_next(Qt_Iterator *itr);
 
 extern const QuadTree *qt_load(const char *file);
