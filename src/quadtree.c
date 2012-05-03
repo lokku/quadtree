@@ -54,7 +54,8 @@ inline void _nullify_quadrants(TransNode **quadrants) {
 }
 
 
-/* AMD phenom has 64-byte cache line width.
+/*
+ * AMD phenom has 64-byte cache line width.
  * sizeof(inner) = sizeof(void *)*4 = 32 bytes
  * We want to make sure that the inner structs are 64-byte
  * aligned.
@@ -109,15 +110,13 @@ _Bool in_quadrant(const Item *i, const Quadrant *q) {
 UFQuadTree *qt_create_quadtree(Quadrant *region, BUCKETSIZE maxfill) {
   UFQuadTree *qt = (UFQuadTree *)_malloc_fast(sizeof(UFQuadTree));
 
-  qt->region   = *region;
-
+  qt->region   = *region;  /* Bound of entire tree */
   qt->size     = 0;        /* Number of items */
+  qt->maxdepth = 0;        /* Max seen so far, not the max allowed */
+  qt->maxfill  = maxfill;  /* Max items per bucket (leaf node) */
 
-  qt->maxdepth = 0;
-  qt->maxfill  = maxfill;  /* Max items per bucket */
-
-  qt->ninners  = 1;
-  qt->nleafs   = 0;
+  qt->ninners  = 1;        /* Number of inner nodes (root node) */
+  qt->nleafs   = 0;        /* Number of leaf nodes */
 
   /* Init root node */
   qt->root = _malloc_fast(sizeof(TransNode));
@@ -149,35 +148,40 @@ void qt_insert(UFQuadTree *qt, const Item *item) {
 }
 
 
-/* Note: *quadrant _is_ modified, but after _insert returns, it is no longer needed
- * (i.e., it's safe to use the address of an auto variable */
-void _qt_insert(UFQuadTree *qt, TransNode *node, Item *item, Quadrant *q, unsigned int depth) {
 
+/*
+ * Do the actual insertion of an item into an unfinished quadtree,
+ * recursing down to the right quadrant and creating new leafs if necessary.
+ *
+ * Note: *quadrant _is_ modified, but after _qt_insert returns, it is no longer
+ * needed (i.e., it's safe to use the address of an auto variable.)
+ */
+void _qt_insert(UFQuadTree *qt, TransNode *node, Item *item, Quadrant *q, unsigned int depth) {
   if (++depth > qt->maxdepth)
     qt->maxdepth = depth;
-
 
  RESTART:
 
   assert(in_quadrant(item, q));
   ASSERT_REGION_SANE(q);
 
-  /* We need to subdivide?? */
   if (node->is_inner) {
     quadindex quad = 0;
 
-    /* Values to split quadrant */
+    /* Midpoints of quadrant */
     FLOAT div_x, div_y;
     CALCDIVS(div_x, div_y, q);
 
-    /* If it's on the boundary or further right, go east */
+    /*
+     * Calculate the child quadrant. If item is exactly 
+     * on a boundary, choose north/east over south/west.
+     */
     if (item->coords[X] >= div_x) {
       EAST(quad);
     } else {
       WEST(quad);
     }
 
-    /* If it's on the boundary of further up, go north */
     if (item->coords[Y] >= div_y) {
       NORTH(quad);
     } else {
@@ -187,45 +191,48 @@ void _qt_insert(UFQuadTree *qt, TransNode *node, Item *item, Quadrant *q, unsign
     /* Shrink region?? */
     _target_quadrant(quad, q);
     /* Make sure child quadrant exists */
-    _ensure_child_quad(qt, node, quad);
+    if (node->quadrants[quad] == NULL) {
+      node->quadrants[quad] = (TransNode *)_malloc_fast(sizeof(TransNode));
+      _init_leaf_node(qt, node->quadrants[quad]);
+    }
+    
     /* Insert into child quadrant */
     _qt_insert(qt, node->quadrants[quad], item, q, depth);
 
-  } else {  /* $node is a leaf */
+  } else { /* Node is a leaf */
     _ensure_bucket_size(qt, node, q, depth);
 
+    /* Bucket was full, leaf became inner, go again */
     if (node->is_inner)
       goto RESTART;
 
+    /* Do actual insert */
     node->leaf.items[node->leaf.n++] = item;
   }
 }
-
-
 
 
 int _itemcmp_direct(Item *a, Item *b) {
   return _itemcmp(&a, &b);
 }
 
+/* Compare two items, returing one of '-1,0,1' like strcmp(3) */
 int _itemcmp(Item **aptr, Item **bptr) {
 
   Item *a = *aptr, *b = *bptr;
 
-  /* The C99 standard defines '||' so that it returns 0 or 1, so we
-     can't use the more natural expression
-     'return wrtx || wrty'
-     Also, don't be introducing any 'if's to this function.
-  */
-
-
   int wrtx = _FLOATcmp(&a->coords[X], &b->coords[X]);
   int wrty = _FLOATcmp(&a->coords[Y], &b->coords[Y]);
 
+  /*
+   * The C99 standard defines '||' so that it returns 0 or 1, so we
+   * can't use the more natural expression:
+   *    'return wrtx || wrty'
+   * Also, don't be introducing any 'if's to this function.
+   */
   int v = wrtx + (wrty * !wrtx);
 
   assert(v == -1 || v == 0 || v == 1);
-
   assert((wrtx >  0 ) ? (v == 1   ) : 1);
   assert((wrtx == 0 ) ? (v == wrty) : 1);
   assert((wrtx <  0 ) ? (v == -1  ) : 1);
@@ -265,18 +272,9 @@ inline void _init_leaf_node(UFQuadTree *qt, TransNode *node) {
   qt->nleafs++;
 }
 
-/* If the quadrant doesn't already exist, create a new leaf node */
-inline void _ensure_child_quad(UFQuadTree *qt, TransNode *node, quadindex quad) {
-  assert(node->is_inner); /* XXX (Vincent): Not required, see callsite */
-
-  if (node->quadrants[quad] == NULL) {
-    node->quadrants[quad] = (TransNode *)_malloc_fast(sizeof(TransNode));
-    _init_leaf_node(qt, node->quadrants[quad]);
-  }
-}
-
-/* Ensures the node is suitably split so that it can accept _another_ item 
- * (i.e., the item hasn't been inserted yet --- node->leaf.n has not been
+/*
+ * Ensures the node is suitably split so that it can accept _another_ item 
+ * (i.e., the item hasn't been inserted yet -- node->leaf.n has not been
  * incremented).
  *
  * Note that if the node is a leaf node when passed into the function,
@@ -319,10 +317,9 @@ void _split_node(UFQuadTree *qt, TransNode *node, const Quadrant *quadrant, unsi
     node->is_inner = 1;
     qt->ninners++;
     qt->nleafs--;
-
     _nullify_quadrants(node->quadrants);
 
-    /* Insert items into new leaf quadrand?? */
+    /* Insert items, _qt_insert will create leafs */
     Quadrant quadrant_;
     unsigned int i;
     for (i=0; i<cpy.leaf.n; i++) {
@@ -336,6 +333,10 @@ void _split_node(UFQuadTree *qt, TransNode *node, const Quadrant *quadrant, unsi
 }
 
 
+/*
+ * Things are stored contigously, so we calculate the full size, so it can be
+ * copied or written to file all in one go.
+ */
 u_int64_t _mem_size(const UFQuadTree *qt) {
   return
     sizeof(QuadTree) +
@@ -344,7 +345,7 @@ u_int64_t _mem_size(const UFQuadTree *qt) {
     sizeof(Item)*qt->size;
 }
 
-
+/* Copy parts of an unfinalised quadtree to a soon-to-be finalised one */
 void _init_quadtree(QuadTree *new, const UFQuadTree *from) {
   QuadTree tmp = {
     .region   = from->region,
@@ -420,7 +421,6 @@ const QuadTree *qt_finalise(const UFQuadTree *qt_, const char *file) {
  *   * updates (st->quadtree->mem.as_inner+X)->quadrants[Y]
  */
 void _qt_finalise_inner(FinaliseState *st) {
-
   int i;
   TransNode *const cur = st->cur_trans;
   Inner *const inner = st->cur_node.as_inner;
@@ -430,6 +430,7 @@ void _qt_finalise_inner(FinaliseState *st) {
 
   st->ninners++;
 
+  /* For each child quadrant */
   for (i=0; i<4; i++) {
     /* Set st->cur_trans to the child, ready for recursion */
     st->cur_trans = cur->quadrants[i];
@@ -437,8 +438,9 @@ void _qt_finalise_inner(FinaliseState *st) {
     if (st->cur_trans == NULL) {
       inner->quadrants[i] = ROOT;
     } else {
-      /* Note: ((Inner *)MEM_INNERS(qt))[st->ninners] is the _next_
-       * node to be finalised (i.e., _not_ this one).
+      /* 
+       * Note: ((Inner *)MEM_INNERS(qt))[st->ninners] is the _next_
+       * node to be finalised (i.e., _not_ this one.)
        */
       st->cur_node.as_void = st->cur_trans->is_inner ?
         (void *) &((Inner *)MEM_INNERS(st->quadtree))[st->ninners] :
@@ -458,15 +460,13 @@ void _qt_finalise_inner(FinaliseState *st) {
 }
 
 void _qt_finalise_leaf(FinaliseState *st) {
-
   assert(IS_LEAF(st->quadtree, st->cur_node.as_void));
 
-  st->next_leaf+= sizeof(Leaf) + st->cur_trans->leaf.n*sizeof(Item);
+  st->next_leaf += sizeof(Leaf) + st->cur_trans->leaf.n*sizeof(Item);
 
   TransNode *cur = st->cur_trans;
 
   Leaf *leaf = st->cur_node.as_leaf;
-
   leaf->n = cur->leaf.n;
 
   unsigned int i;
@@ -514,6 +514,7 @@ inline Qt_Iterator *qt_query_itr(const QuadTree *qt, const Quadrant *region) {
   itr->stack[0].quadrant      = 0;
   itr->stack[0].within_parent = 0;
 
+  /* Figure out all the quadrants */
   _gen_quadrants(&qt->region, itr->stack[0].quadrants);
 
   _itr_next_recursive(itr);
@@ -533,7 +534,8 @@ inline Item *qt_itr_next(Qt_Iterator *itr) {
     return NULL;
   }
   
-  /* Cunning use of '*' instead of '&&' to avoid a pipeline stall.
+  /* 
+   * Cunning use of '*' instead of '&&' to avoid a pipeline stall.
    * Note that no shortcutting is done, so the second operand to '*'
    * is always evaluated, regardless of the outcome of the first,
    * but this doesn't matter: we know that itr->sp points to malloc()ed
@@ -663,15 +665,13 @@ void _itr_next_recursive(Qt_Iterator *itr) {
 }
 
 
-
-/* Slightly faster than lots of _target_quadrant()s */
+/* Figure out all the quadrants together, for speed */
 inline void _gen_quadrants(const Quadrant *region, Quadrant *mem) {
-
   ASSERT_REGION_SANE(region);
 
+  /* Midpoints of region */
   FLOAT div_x, div_y;
   CALCDIVS(div_x, div_y, region);
-
 
   mem[NE].ne[X] = region->ne[X];
   mem[NE].ne[Y] = region->ne[Y];
@@ -797,9 +797,6 @@ Item **qt_query_ary_fast(const QuadTree *quadtree, const Quadrant *region, u_int
   return items;
 }
 
-
-
-
 /*
  * Note: offset is the position at which we can start storing items
  * (i.e., *items+offset must not already contain an item).
@@ -850,7 +847,8 @@ inline void _include_leaf(Item ***items, u_int64_t *offset, u_int64_t *size, Lea
 
 /* Read a file into memory  */
 void _read_mem(void *mem, int fd, u_int64_t bytes) {
-  /* This is the page size of the virtual memory pages, not the
+  /* 
+   * This is the page size of the virtual memory pages, not the
    * filesystem or IO device pages. It also happens that I don't
    * care --- I just needed a reasonable block size to read.
    */
