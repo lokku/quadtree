@@ -100,7 +100,7 @@ inline void *_realloc(void *ptr, size_t size) {
 
 
 /* Check if item is in a quadrand */
-_Bool in_quadrant(const Item *i, const Quadrant *q) {
+bool in_quadrant(const Item *i, const Quadrant *q) {
   return ((i->coords[X] >= q->sw[X]) && (i->coords[X] <= q->ne[X]) &&
           (i->coords[Y] >= q->sw[Y]) && (i->coords[Y] <= q->ne[Y]));
 }
@@ -801,7 +801,7 @@ Item **qt_query_ary_fast(const QuadTree *quadtree, const Quadrant *region, u_int
  * Note: offset is the position at which we can start storing items
  * (i.e., *items+offset must not already contain an item).
  */
-inline void _include_leaf(Item ***items, u_int64_t *offset, u_int64_t *size, Leaf *leaf, Quadrant *quadrant, _Bool within) {
+inline void _include_leaf(Item ***items, u_int64_t *offset, u_int64_t *size, Leaf *leaf, Quadrant *quadrant, bool within) {
   assert(leaf != NULL);
 
   u_int32_t i;

@@ -21,6 +21,7 @@
 
 #include <stdio.h>
 
+#include "quadtree_portable.h"
 #include "quadtree.h"
 
 
@@ -66,7 +67,7 @@ struct _Leaf {
 
 /* A transient node: soon it will be either an inner or leaf node */
 struct _TransNode {
-  _Bool is_inner;
+  bool is_inner;
   union {
     TransNode *quadrants[4];
     struct {
@@ -113,7 +114,7 @@ struct _Qt_Itr_Frame {
   quadindex quadrant;
 
   /* Should _all_ items under (or in) this node be included? */
-  _Bool within_parent;
+  bool within_parent;
 };
 
   /* I am scared of floating point errors if I don't explicitly store
