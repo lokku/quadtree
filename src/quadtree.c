@@ -178,18 +178,22 @@ void _qt_insert(UFQuadTree *qt, TransNode *node, Item *item, Quadrant *q, unsign
      */
     if (item->coords[X] >= div_x) {
       EAST(quad);
+      q->sw[X] = div_x;
     } else {
-      WEST(quad);
+      WEST(quad); /* No effect, here for clarity */
+      q->ne[X] = div_x;
     }
 
     if (item->coords[Y] >= div_y) {
-      NORTH(quad);
+      NORTH(quad); /* No effect, here for clarity */
+      q->sw[Y] = div_y;
     } else {
       SOUTH(quad);
+      q->ne[Y] = div_y;
     }
 
-    /* Shrink region?? */
-    _target_quadrant(quad, q);
+    ASSERT_REGION_SANE(q);
+    
     /* Make sure child quadrant exists */
     if (node->quadrants[quad] == NULL) {
       node->quadrants[quad] = (TransNode *)_malloc_fast(sizeof(TransNode));
@@ -274,25 +278,25 @@ inline void _init_leaf_node(UFQuadTree *qt, TransNode *node) {
  * type may change as a side effect of this function).
  */
 inline void _ensure_bucket_size(UFQuadTree *qt, TransNode *node, const Quadrant *quadrant, unsigned int depth) {
+  assert(!node->is_inner);
 
-  assert(!node->is_inner); /* XXX (Vincent): Not required, see callsite */
-
+  /* Split if needed */
   if (node->leaf.n+1 > node->leaf.size) {
     _split_node(qt, node, quadrant, depth);
   }
 
 #ifndef NDEBUG
+  /* Could be changed by _split_node() */
   if (!node->is_inner) {
     assert(node->leaf.items != NULL);
     assert(malloc_usable_size(node->leaf.items) >= sizeof(*node->leaf.items)*node->leaf.n+1);
     assert(malloc_usable_size(node->leaf.items) >= sizeof(*node->leaf.items)*node->leaf.size);
   }
 #endif
-
 }
 
 
-/* Too many items, split?? */
+/* Too many items, split the quadrant */
 void _split_node(UFQuadTree *qt, TransNode *node, const Quadrant *quadrant, unsigned int depth) {
   if (!_distinct_items_exist(node)) {
     /* All items are the same, we cannot further split the node */
@@ -347,17 +351,15 @@ void _init_quadtree(QuadTree *new, const UFQuadTree *from) {
   memcpy(new, &tmp, sizeof(QuadTree));
 }
 
-
 /* Create a finalised quadtree, optionally writing to a file */
 const QuadTree *qt_finalise(const UFQuadTree *qt_, const char *file) {
   const QuadTree *qt;
-  FinaliseState st;
 
   u_int64_t bytes = _mem_size(qt_);
-
   void *mem = _malloc(bytes);
 
-  /* Initialise the QuadTree before assigning the pointer.
+  /*
+   * Initialise the QuadTree before assigning the pointer.
    * This is just because I'm cautious. The elements of QuadTree
    * are all const-s, and so once the quadtree pointer is assigned,
    * the compiler could, in theory, choose to cache the memory
@@ -368,12 +370,14 @@ const QuadTree *qt_finalise(const UFQuadTree *qt_, const char *file) {
 
   qt  = (QuadTree *)mem;
 
+  FinaliseState st;
   st.quadtree = qt;
   st.ninners  = 0;
   st.cur_trans        = qt_->root;
   st.cur_node.as_void = MEM_INNERS(qt);
   st.next_leaf        = MEM_LEAFS(qt);
 
+  /* Finalise nodes */
   _qt_finalise(&st);
 
   /* Optionally dump to a file */
@@ -394,8 +398,19 @@ const QuadTree *qt_finalise(const UFQuadTree *qt_, const char *file) {
   return qt;
 }
 
+/* Finalise a node (inner or leaf) */
+inline void _qt_finalise(FinaliseState *st) {
+  assert(st->cur_trans != NULL);
+
+  if (st->cur_trans->is_inner) {
+    _qt_finalise_inner(st);
+  } else {
+    _qt_finalise_leaf(st);
+  }
+}
+
+
 /*
- *
  * pre-condition:
  *   * st->cur_node points to the memory address for the translated
  *     st->cur_trans node (no need for *st->cur_node to be zeroed)
@@ -470,17 +485,6 @@ void _qt_finalise_leaf(FinaliseState *st) {
 #ifndef NDEBUG
   st->cur_trans = NULL;
 #endif
-}
-
-
-inline void _qt_finalise(FinaliseState *st) {
-  assert(st->cur_trans != NULL);
-
-  if (st->cur_trans->is_inner) {
-    _qt_finalise_inner(st);
-  } else {
-    _qt_finalise_leaf(st);
-  }
 }
 
 
@@ -681,48 +685,10 @@ inline void _gen_quadrants(const Quadrant *region, Quadrant *mem) {
   mem[NW].sw[X] = region->sw[X];
   mem[NW].sw[Y] = div_y;
 
-
   ASSERT_REGION_SANE(&mem[NE]);
   ASSERT_REGION_SANE(&mem[SE]);
   ASSERT_REGION_SANE(&mem[SW]);
   ASSERT_REGION_SANE(&mem[NW]);
-
-}
-
-
-/*
- +-------+-ne[Y]-+
- |       |       n
- |       |       e 
- |       |      [X]
- +-------+-------+
- s       |       | 
- w       |       |
-[X]      |       |
- +-sw[Y]-|-------+
-
- Shrink region based on the quadrant of the item.
-
-*/
-inline void _target_quadrant(quadindex q, Quadrant *region) {
-  ASSERT_REGION_SANE(region);
-
-  FLOAT div_x, div_y;
-  CALCDIVS(div_x, div_y, region);
-
-  if (ISSOUTH(q)) {
-    region->ne[Y] = div_y;
-  } else {
-    region->sw[Y] = div_y;
-  }
-
-  if (ISEAST(q)) {
-    region->sw[X] = div_x;
-  } else {
-    region->ne[X] = div_x;
-  }
-
-  ASSERT_REGION_SANE(region);
 }
 
 /* Get an array of at most maxn items from the specified region */
