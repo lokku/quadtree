@@ -66,6 +66,7 @@ LT_INIT
 
 dnl Check for standard headers
 AC_HEADER_STDC
+AC_HEADER_STDBOOL
 
 dnl Types
 AC_TYPE_SIZE_T

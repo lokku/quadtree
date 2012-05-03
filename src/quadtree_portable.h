@@ -16,6 +16,10 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/*
+ * quadtree_portable.h: Portably define things in co-operation with autoconf.
+ */
+
 #ifndef QUADTREE_PORTABLE_H
 #define QUADTREE_PORTABLE_H
 
@@ -58,6 +62,25 @@
 #  endif /* __WORDSIZE != 64 */
 #endif /* !HAVE_INTTYPES_H */
 
+/**
+ ** Portably define bool (taken directly from the autoconf manual)
+ **/
+
+#ifdef HAVE_STDBOOL_H
+# include <stdbool.h>
+#else /* !HAVE_STDBOOL_H */
+# ifndef HAVE__BOOL
+#  ifdef __cplusplus
+      typedef bool _Bool;
+#  else /* !__cplusplus */
+#   define _Bool signed char
+#  endif /* !__cplusplus */
+# endif /* HAVE__BOOL */
+# define bool _Bool
+# define false 0
+# define true 1
+# define __bool_true_false_are_defined 1
+#endif /* !HAVE_STDBOOL_H */
 
 #endif /* QUADTREE_PORTABLE_H */
 
