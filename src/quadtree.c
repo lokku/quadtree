@@ -245,24 +245,16 @@ inline int _FLOATcmp(FLOAT *a, FLOAT *b) {
 }
 
 
-inline int _count_distinct_items(TransNode *node) {
-  /* This is pretty inefficient, since we only want to find if
-     the number of distinct nodes is >1. However, I'm keeping this
-     logic until there's a motivation to simplify it. */
-
-
-  qsort(node->leaf.items, node->leaf.n, sizeof(Item *), (__compar_fn_t)_itemcmp);
-
-  int r = node->leaf.n > 0;  /* 1 or 0 */
-
+/* Returns true iff any two items are distinct */
+inline bool _distinct_items_exist(TransNode *node) {
   BUCKETSIZE i;
   for (i=1; i<node->leaf.n; i++) {
     if (_itemcmp(&node->leaf.items[i-1], &node->leaf.items[i]))
-      r++;
+      return true;
   }
-  return r;
-}
 
+  return false;
+}
 
 inline void _init_leaf_node(UFQuadTree *qt, TransNode *node) {
   node->is_inner = 0;
@@ -302,12 +294,8 @@ inline void _ensure_bucket_size(UFQuadTree *qt, TransNode *node, const Quadrant 
 
 /* Too many items, split?? */
 void _split_node(UFQuadTree *qt, TransNode *node, const Quadrant *quadrant, unsigned int depth) {
-  assert(!node->is_inner); /* XXX (Vincent): Not required, see callsite */
-
-  int distinct = _count_distinct_items(node);
-
-  if (distinct == 1) {
-    /* Nothing we can do to further split the nodes */
+  if (!_distinct_items_exist(node)) {
+    /* All items are the same, we cannot further split the node */
     node->leaf.size *= 2;
     node->leaf.items = _realloc(node->leaf.items, node->leaf.size*sizeof(Item *));
   } else {
