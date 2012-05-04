@@ -39,3 +39,6 @@ Makefile.in
 *.o
 *.la
 *.lo
+
+# Ignore tags files
+tags

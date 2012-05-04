@@ -40,5 +40,7 @@ Examples:
          $ ./configure --prefix=/absolute/path/to/install/into/
          $ make clean all CFLAGS="-DNDEBUG -O3"
          $ make install-strip
+   3) Running a specific test (e.g ones not in the default set)
+         $ make check TESTS=stress-test
 
 For more information, consult the ./INSTALL and ./README files.

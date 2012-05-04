@@ -27,18 +27,30 @@ AM_CFLAGS = -Wall -W
 ## Test Programs
 ##
 
-check_PROGRAMS = checkqt benchmark
+check_PROGRAMS = checkqt benchmark same-bucket stress-test
+
+
+## Tests to run by default in 'make check'
+TESTS = checkqt same-bucket
 
 # Checkqt (name can't clash with target 'check')
 checkqt_SOURCES = check.c ../quadtree.h
 checkqt_LDADD = ../libquadtree.la
 
-# Benchmark binary
+# Lots of items in the same bucket
+same_bucket_SOURCES = same-bucket.c ../quadtree.h
+same_bucket_LDADD = ../libquadtree.la
+
+
+## Tests not run by default (with reasons)
+
+# Benchmark binary (used to compare to perl performance, not a test)
 benchmark_SOURCES = benchmark.c ../quadtree.h
 benchmark_LDADD = ../libquadtree.la
 
-# Tests to actually run
-TESTS = checkqt
+# Stress test (requires >4GB of free RAM, so not enabled by default)
+stress_test_SOURCES = stress-test.c ../quadtree.h
+stress_test_LDADD = ../libquadtree.la
 
 ##
 ## Help 
