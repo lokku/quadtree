@@ -1,3 +1,12 @@
+2012-05-04 Vincent Launchbury <vincent@lokku.com>
+	* configure.ac: Downgraded autoconf requirement to 2.67
+	* src/quadtree.c, src/quadtree.h: Added many more comments to the code to
+	explain its purpose, and reformatted to a new style guideline.
+	* src/quadtree_portability.h, configure.ac: Portably define bool
+	* Makefile.am, src/tests/Makefile.am: Updated Makefile layout, moved test
+	stuff into a new Makefile in the src/tests directory
+	* .gitignore: Overhauled gitignore
+	* src/tests/same-bucket.c, src/tests/stress-test.c: Two new tests
 2012-04-16 Vincent Launchbury <vincent@lokku.com>
 	* docs/libquadtree.texi: Wrote texinfo documentation currently only as
 	detailed as the manpage, but with room for additions. This automatically

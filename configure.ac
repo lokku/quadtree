@@ -19,7 +19,7 @@ dnl Autoconf 2.67 required to build
 AC_PREREQ([2.67])
 
 dnl Version number of source code
-AC_INIT([libquadtree], [1.1], [opensource@lokku.com])
+AC_INIT([libquadtree], [1.2], [opensource@lokku.com])
 
 dnl Version number of library (NOT the package version)
 dnl >>>Read note 5 in README.maintainer before updating<<<

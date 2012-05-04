@@ -1,10 +1,10 @@
-This is libquadtree version 1.1
+This is libquadtree version 1.2
 
 This file contains a non-definitive list of user-visible changes.
 See ChangeLog for a more detailed log of changes, geared toward developers
 
-Changes in 1.1
-~~~~~~~~~~~~~~~
+Changes from 1.1 to 1.2
+~~~~~~~~~~~~~~~~~~~~~~~
    - New build system (the familiar `./configure && make && make install')
    - Added README/AUTHORS/ChangeLog/NEWS/INSTALL help files
    - Added a full manpage

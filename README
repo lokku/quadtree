@@ -1,4 +1,4 @@
-libquadtree 1.1
+libquadtree 1.2
 
 TABLE OF CONTENTS
 ~~~~~~~~~~~~~~~~~
@@ -19,7 +19,7 @@ Building & Installing
 ~~~~~~~~~~~~~~~~~~~~~
 To install locally and test:
    1) Change into the source directory:
-      $ cd libquadtree-1.1/
+      $ cd libquadtree-1.2/
 
    2) Configure the library for your system:
       $ ./configure --prefix=$PWD/testdir
@@ -35,7 +35,7 @@ To install locally and test:
 
 To install in a production environment:
    1) Configure the library:
-      $ cd libquadtree-1.1/
+      $ cd libquadtree-1.2/
       $ ./configure
 
    2) Compile with asserts disabled and maximum optimizations
