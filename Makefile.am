@@ -28,7 +28,3 @@ dist-local:
 
 help:
 	@cat docs/make-help.txt
-
-# Clear up test files
-check-local:
-	@rm -f _check.dat _benchmark.dat 2>/dev/null

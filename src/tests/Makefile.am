@@ -14,12 +14,35 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-EXTRA_DIST = make-help.txt
+##
+## CFLAGS
+##
 
-# Man page
-dist_man_MANS = libquadtree.3
-# Info page (does html/pdf/ps/..etc automatically)
-info_TEXINFOS = libquadtree.texi
+# Don't change this! Adding anything but warning flags may break CFLAGS
+# customization for people not using gcc.
+AM_CFLAGS = -Wall -W
+
+
+##
+## Test Programs
+##
+
+check_PROGRAMS = checkqt benchmark
+
+# Checkqt (name can't clash with target 'check')
+checkqt_SOURCES = check.c ../quadtree.h
+checkqt_LDADD = ../libquadtree.la
+
+# Benchmark binary
+benchmark_SOURCES = benchmark.c ../quadtree.h
+benchmark_LDADD = ../libquadtree.la
+
+# Tests to actually run
+TESTS = checkqt
+
+##
+## Help 
+##
 
 help:
 	@cat $(top_srcdir)/docs/make-help.txt

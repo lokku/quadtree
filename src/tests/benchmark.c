@@ -120,6 +120,12 @@ int main(void) {
   printf("withins: %ld, nwithins: %ld\n", withins, nwithins);
 #endif
 
+  /* Clean up temp file */
+  if (-1 == unlink("_benchmark.dat")) {
+      fprintf(stderr, "Can't remove data file _benchmark.dat\n");
+      exit(1);
+  }
+
   qt_free((QuadTree *)qt);
 
   return 0;

@@ -14,6 +14,8 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+SUBDIRS = tests
+
 ##
 ## CFLAGS
 ##
@@ -36,35 +38,9 @@ libquadtree_la_LDFLAGS = -version-info ${QUADTREE_LIB_VERSION}
 # Headers that should be installed in ${prefix}/include/
 include_HEADERS = quadtree.h
 
-	
-##
-## Test Programs
-##
-
-check_PROGRAMS = tests/checkqt tests/benchmark
-
-# Checkqt (name can't clash with target 'check')
-tests_checkqt_SOURCES = tests/check.c quadtree.h
-tests_checkqt_LDADD = libquadtree.la
-
-# Benchmark binary
-tests_benchmark_SOURCES = tests/benchmark.c quadtree.h
-tests_benchmark_LDADD = libquadtree.la
-
-# Tests to run
-TESTS = tests/checkqt
-
-
-##
-## Clear up test files
-## 
-
-check-local:
-	@rm -f _check.dat _benchmark.dat 2>/dev/null
-
 ##
 ## Help 
 ##
 
 help:
-	@cat ../docs/make-help.txt
+	@cat $(top_srcdir)/docs/make-help.txt

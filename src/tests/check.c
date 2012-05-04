@@ -18,7 +18,9 @@
 
 #define _GNU_SOURCE
 
+#include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <assert.h>
 
@@ -221,6 +223,12 @@ int main(void) {
 #ifndef NDEBUG
   printf("withins: %ld, nwithins: %ld\n", withins, nwithins);
 #endif
+
+  /* Clean up temp file */
+  if (-1 == unlink("_check.dat")) {
+      fprintf(stderr, "Can't remove data file _check.dat\n");
+      exit(1);
+  }
 
   if (errors) {
     printf("errors: %" PRIu64 "\n", errors);
