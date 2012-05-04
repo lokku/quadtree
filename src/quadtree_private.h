@@ -53,7 +53,8 @@ typedef struct _Qt_Itr_Frame    Qt_Itr_Frame;
  */
 
 struct _Inner {
-  /* quadrants:
+  /*
+   * quadrants:
    *   offsets in bytes to other _Inner or _Leaf structs.
    *   an offset of 0 means that there is no child.
    */
@@ -75,14 +76,15 @@ struct _TransNode {
       unsigned int n;
       unsigned int size;
 
-      /* Notes:
-       * size:
-           if non-0, indicates that this bucket is too big, and that
-           the reason for this is that it contains identically-coordinated
-           nodes that cannot be split into other buckets. The actual
-           value indicates the size (in number of items, not bytes) of
-           the memory malloc()ed for the bucket.
-      */
+      /*
+       * Notes:
+       *    size:
+       *      if non-0, indicates that this bucket is too big, and that the
+       *      reason for this is that it contains identically-coordinated nodes
+       *      that cannot be split into other buckets. The actual value
+       *      indicates the size (in number of items, not bytes) of the memory
+       *      malloc()ed for the bucket.
+       */
     } leaf;
   };  /* "unnamed struct/union": http://gcc.gnu.org/onlinedocs/gcc/Unnamed-Fields.html */
 };
@@ -117,7 +119,8 @@ struct _Qt_Itr_Frame {
   bool within_parent;
 };
 
-  /* I am scared of floating point errors if I don't explicitly store
+  /*
+   * I am scared of floating point errors if I don't explicitly store
    * the quadrant values. That is, if we have:
    *
    * x1 = x0/2
@@ -144,7 +147,8 @@ struct _Qt_Itr_Frame {
 struct Qt_Iterator {
   Qt_Itr_Frame *stack;
 
-  Leaf *lp;  /* leaf pointer: Not an optimisation for a good compiler,
+  Leaf *lp;  /*
+              * leaf pointer: Not an optimisation for a good compiler,
               * but improves code clarity (in my opinion)
               */
 
@@ -217,8 +221,7 @@ void  _free_itr(Qt_Iterator *itr);
  * | 10 | 11 |
  * +----+----+
  *
- *
- ***************/
+ */
 
 #define NORTH(x) ((x) = (x) & NE)
 #define SOUTH(x) ((x) = (x) | SW)

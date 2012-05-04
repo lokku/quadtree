@@ -33,7 +33,7 @@
 #include <sys/stat.h>
 
 #ifndef NDEBUG
-#include <malloc.h>
+#   include <malloc.h>
 #endif
 
 #include "quadtree.h"
