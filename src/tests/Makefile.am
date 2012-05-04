@@ -20,7 +20,7 @@
 
 # Don't change this! Adding anything but warning flags may break CFLAGS
 # customization for people not using gcc.
-AM_CFLAGS = -Wall -W
+AM_CFLAGS = -Wall -W -I$(top_srcdir)/src/
 
 
 ##
@@ -28,28 +28,29 @@ AM_CFLAGS = -Wall -W
 ##
 
 check_PROGRAMS = checkqt benchmark same-bucket stress-test
+test_headers  = ../quadtree.h ../quadtree_portable.h ../quadtree_private.h
 
 
 ## Tests to run by default in 'make check'
 TESTS = checkqt same-bucket
 
 # Checkqt (name can't clash with target 'check')
-checkqt_SOURCES = check.c ../quadtree.h
+checkqt_SOURCES = check.c $(test_headers)
 checkqt_LDADD = ../libquadtree.la
 
 # Lots of items in the same bucket
-same_bucket_SOURCES = same-bucket.c ../quadtree.h
+same_bucket_SOURCES = same-bucket.c $(test_headers)
 same_bucket_LDADD = ../libquadtree.la
 
 
 ## Tests not run by default (with reasons)
 
 # Benchmark binary (used to compare to perl performance, not a test)
-benchmark_SOURCES = benchmark.c ../quadtree.h
+benchmark_SOURCES = benchmark.c $(test_headers)
 benchmark_LDADD = ../libquadtree.la
 
 # Stress test (requires >4GB of free RAM, so not enabled by default)
-stress_test_SOURCES = stress-test.c ../quadtree.h
+stress_test_SOURCES = stress-test.c $(test_headers)
 stress_test_LDADD = ../libquadtree.la
 
 ##
