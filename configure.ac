@@ -48,6 +48,7 @@ AC_CONFIG_HEADERS([src/config.h])
 dnl List of makefiles
 AC_CONFIG_FILES([Makefile
                  src/Makefile
+                 src/tests/Makefile
                  docs/Makefile])
 
 dnl /usr/local doesn't work on some distros I tested,
