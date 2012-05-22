@@ -179,31 +179,34 @@ struct _FinaliseState {
 };
 
 
-inline void _nullify_quadrants(TransNode **quadrants);
-inline void *_malloc(size_t size);
-inline void *_malloc_fast(size_t size);
-inline void *_realloc(void *ptr, size_t size);
-inline bool in_quadrant(const Item *i, const Quadrant *q);
-inline int _FLOATcmp(FLOAT *a, FLOAT *b);
-inline bool _distinct_items_exist(TransNode *node);
-inline void _init_leaf_node(UFQuadTree *qt, TransNode *node);
-inline void _ensure_bucket_size(UFQuadTree *qt, TransNode *node, const Quadrant *quadrant, unsigned int depth);
-inline void _qt_finalise(FinaliseState *st);
-inline void _gen_quadrants(const Quadrant *region, Quadrant *mem);
-inline void _include_leaf(Item ***items, u_int64_t *offset, u_int64_t *size, Leaf *leaf, Quadrant *quadrant, bool within);
-
-void _qt_insert(UFQuadTree *qt, TransNode *node, Item *item, Quadrant *q, unsigned int depth);
+/* 
+ * The following private methods are non-static because they are used in
+ * src/tests/check.c
+ */
+inline bool _in_quadrant(const Item *i, const Quadrant *q);
+inline int  _FLOATcmp(FLOAT *a, FLOAT *b);
 int  _itemcmp(Item **aptr, Item **bptr);
 int  _itemcmp_direct(Item *a, Item *b);
-void _split_node(UFQuadTree *qt, TransNode *node, const Quadrant *quadrant, unsigned int depth);
-u_int64_t _mem_size(const UFQuadTree *qt);
-void _init_quadtree(QuadTree *new, const UFQuadTree *from);
-const QuadTree *qt_finalise(const UFQuadTree *qt_, const char *file);
-void _qt_finalise_inner(FinaliseState *st);
-void _qt_finalise_leaf(FinaliseState *st);
-void _itr_next_recursive(Qt_Iterator *itr);
-void _read_mem(void *mem, int fd, u_int64_t bytes);
-void  _free_itr(Qt_Iterator *itr);
+
+static inline void _nullify_quadrants(TransNode **quadrants);
+static inline void *_malloc(size_t size);
+static inline void *_malloc_fast(size_t size);
+static inline void *_realloc(void *ptr, size_t size);
+static inline bool _distinct_items_exist(TransNode *node);
+static inline void _init_leaf_node(UFQuadTree *qt, TransNode *node);
+static inline void _ensure_bucket_size(UFQuadTree *qt, TransNode *node, const Quadrant *quadrant, unsigned int depth);
+static inline void _qt_finalise(FinaliseState *st);
+static inline void _gen_quadrants(const Quadrant *region, Quadrant *mem);
+static inline void _include_leaf(Item ***items, u_int64_t *offset, u_int64_t *size, Leaf *leaf, Quadrant *quadrant, bool within);
+
+static void _qt_insert(UFQuadTree *qt, TransNode *node, Item *item, Quadrant *q, unsigned int depth);
+static void _split_node(UFQuadTree *qt, TransNode *node, const Quadrant *quadrant, unsigned int depth);
+static u_int64_t _mem_size(const UFQuadTree *qt);
+static void _init_quadtree(QuadTree *new, const UFQuadTree *from);
+static void _qt_finalise_inner(FinaliseState *st);
+static void _qt_finalise_leaf(FinaliseState *st);
+static void _itr_next_recursive(Qt_Iterator *itr);
+static void _read_mem(void *mem, int fd, u_int64_t bytes);
 
 
 /*

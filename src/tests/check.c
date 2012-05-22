@@ -1,16 +1,16 @@
 /*
  * Copyright (C) 2011-2012 Lokku ltd. and contributors
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
@@ -25,9 +25,12 @@
 #include <assert.h>
 
 #include "quadtree.h"
-#include "quadtree_private.h"
 #include "quadtree_portable.h"
 
+extern inline bool _in_quadrant(const Item *i, const Quadrant *q);
+extern inline int  _FLOATcmp(FLOAT *a, FLOAT *b);
+extern int  _itemcmp(Item **aptr, Item **bptr);
+extern int  _itemcmp_direct(Item *a, Item *b);
 
 typedef struct {
   Quadrant region;
@@ -58,7 +61,7 @@ void populate(UFQuadTree *qt, region *regions, short int nregions, ITEM n) {
     qt_insert(qt, &item);
 
     for (j=0; j<nregions; j++) {
-      if (in_quadrant(&item, &regions[j].region)) {
+      if (_in_quadrant(&item, &regions[j].region)) {
 
         /* Grow/alloc memory if needed */
         if ((regions[j].items == NULL) || (regions[j].n+1 > regions[j].maxn)) {
@@ -145,7 +148,7 @@ u_int64_t check(const QuadTree *qt, const region *regions, short int nregions) {
       unsigned int j;
       u_int64_t ncorrect=0;
       for (j=0; j<maxn; j++) {
-        if (!in_quadrant(items[j], &regions[i].region)) {
+        if (!_in_quadrant(items[j], &regions[i].region)) {
           printf("error: { value = %" PRIu64 ", x = %lf, y = %lf }\n",
                items[j]->value, items[j]->coords[0], items[j]->coords[1]);
         } else {

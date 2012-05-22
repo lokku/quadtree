@@ -1,16 +1,16 @@
 /*
  * Copyright (C) 2011-2012 Lokku ltd. and contributors
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
@@ -46,7 +46,7 @@ unsigned long int nwithins = 0;
 
 
 /* Expect this to be faster than a memcpy */
-inline void _nullify_quadrants(TransNode **quadrants)
+static inline void _nullify_quadrants(TransNode **quadrants)
 {
     quadrants[NW] = (TransNode *)NULL;
     quadrants[NE] = (TransNode *)NULL;
@@ -65,12 +65,12 @@ inline void _nullify_quadrants(TransNode **quadrants)
  */
 
 /* Page aligned memory */
-inline void *_malloc(size_t size)
+static inline void *_malloc(size_t size)
 {
     void *ptr;
     int err;
     if ((err = posix_memalign(&ptr, getpagesize(), size))) {
-        fprintf(stderr, "malloc: couldn't allocate %lu bytes", 
+        fprintf(stderr, "malloc: couldn't allocate %lu bytes",
             (unsigned long)size);
         perror("posix_memalign");
         exit(1);
@@ -78,11 +78,11 @@ inline void *_malloc(size_t size)
     return ptr;
 }
 
-inline void *_malloc_fast(size_t size)
+static inline void *_malloc_fast(size_t size)
 {
     void *ptr = malloc(size);
     if (ptr == NULL) {
-        fprintf(stderr, "malloc: couldn't allocate %lu bytes", 
+        fprintf(stderr, "malloc: couldn't allocate %lu bytes",
             (unsigned long)size);
         perror("malloc");
         exit(1);
@@ -90,11 +90,11 @@ inline void *_malloc_fast(size_t size)
     return ptr;
 }
 
-inline void *_realloc(void *ptr, size_t size)
+static inline void *_realloc(void *ptr, size_t size)
 {
     ptr = realloc(ptr, size);
     if (ptr == NULL) {
-        fprintf(stderr, "realloc: couldn't allocate %lu bytes", 
+        fprintf(stderr, "realloc: couldn't allocate %lu bytes",
             (unsigned long)size);
         perror("realloc");
         exit(1);
@@ -104,11 +104,11 @@ inline void *_realloc(void *ptr, size_t size)
 
 
 /* Check if item is in a quadrand */
-inline bool in_quadrant(const Item *i, const Quadrant *q)
+inline bool _in_quadrant(const Item *i, const Quadrant *q)
 {
-    return ((i->coords[X] >= q->sw[X]) 
+    return ((i->coords[X] >= q->sw[X])
             && (i->coords[X] <= q->ne[X])
-            && (i->coords[Y] >= q->sw[Y]) 
+            && (i->coords[Y] >= q->sw[Y])
             && (i->coords[Y] <= q->ne[Y])
     );
 }
@@ -168,8 +168,8 @@ void qt_insert(UFQuadTree *qt, const Item *item)
  * Note: *quadrant _is_ modified, but after _qt_insert returns, it is no longer
  * needed (i.e., it's safe to use the address of an auto variable.)
  */
-void _qt_insert(UFQuadTree *qt, TransNode *node, Item *item, Quadrant *q, 
-    unsigned int depth) 
+static void _qt_insert(UFQuadTree *qt, TransNode *node, Item *item, Quadrant *q,
+    unsigned int depth)
 {
     if (++depth > qt->maxdepth) {
         qt->maxdepth = depth;
@@ -177,7 +177,7 @@ void _qt_insert(UFQuadTree *qt, TransNode *node, Item *item, Quadrant *q,
 
 RESTART:
 
-    assert(in_quadrant(item, q));
+    assert(_in_quadrant(item, q));
     ASSERT_REGION_SANE(q);
 
     if (node->is_inner) {
@@ -188,7 +188,7 @@ RESTART:
         CALCDIVS(div_x, div_y, q);
 
         /*
-         * Calculate the child quadrant. If item is exactly 
+         * Calculate the child quadrant. If item is exactly
          * on a boundary, choose north/east over south/west.
          */
         if (item->coords[X] >= div_x) {
@@ -235,7 +235,6 @@ RESTART:
     }
 }
 
-
 int _itemcmp_direct(Item *a, Item *b)
 {
     return _itemcmp(&a, &b);
@@ -272,7 +271,7 @@ inline int _FLOATcmp(FLOAT *a, FLOAT *b)
 
 
 /* Returns true iff any two items are distinct */
-inline bool _distinct_items_exist(TransNode *node)
+static inline bool _distinct_items_exist(TransNode *node)
 {
     BUCKETSIZE i;
     for (i=1; i<node->leaf.n; i++) {
@@ -283,7 +282,7 @@ inline bool _distinct_items_exist(TransNode *node)
     return false;
 }
 
-inline void _init_leaf_node(UFQuadTree *qt, TransNode *node)
+static inline void _init_leaf_node(UFQuadTree *qt, TransNode *node)
 {
     node->is_inner = 0;
     node->leaf.size = qt->maxfill;
@@ -293,7 +292,7 @@ inline void _init_leaf_node(UFQuadTree *qt, TransNode *node)
 }
 
 /*
- * Ensures the node is suitably split so that it can accept _another_ item 
+ * Ensures the node is suitably split so that it can accept _another_ item
  * (i.e., the item hasn't been inserted yet -- node->leaf.n has not been
  * incremented).
  *
@@ -301,7 +300,7 @@ inline void _init_leaf_node(UFQuadTree *qt, TransNode *node)
  * it may be an inner node when the function terminates (i.e., the node's
  * type may change as a side effect of this function).
  */
-inline void _ensure_bucket_size(UFQuadTree *qt, TransNode *node,
+static inline void _ensure_bucket_size(UFQuadTree *qt, TransNode *node,
     const Quadrant *quadrant, unsigned int depth)
 {
     assert(!node->is_inner);
@@ -315,7 +314,7 @@ inline void _ensure_bucket_size(UFQuadTree *qt, TransNode *node,
     /* Could be changed by _split_node() */
     if (!node->is_inner) {
         assert(node->leaf.items != NULL);
-        assert(malloc_usable_size(node->leaf.items) 
+        assert(malloc_usable_size(node->leaf.items)
             >= sizeof(*node->leaf.items)*node->leaf.n+1
         );
         assert(malloc_usable_size(node->leaf.items)
@@ -327,13 +326,13 @@ inline void _ensure_bucket_size(UFQuadTree *qt, TransNode *node,
 
 
 /* Too many items, split the quadrant */
-void _split_node(UFQuadTree *qt, TransNode *node, const Quadrant *quadrant,
+static void _split_node(UFQuadTree *qt, TransNode *node, const Quadrant *quadrant,
     unsigned int depth)
 {
     if (!_distinct_items_exist(node)) {
         /* All items are the same, we cannot further split the node */
         node->leaf.size *= 2;
-        node->leaf.items = 
+        node->leaf.items =
             _realloc(node->leaf.items, node->leaf.size*sizeof(Item *));
     }
     else {
@@ -363,7 +362,7 @@ void _split_node(UFQuadTree *qt, TransNode *node, const Quadrant *quadrant,
  * Things are stored contigously, so we calculate the full size, so it can be
  * copied or written to file all in one go.
  */
-u_int64_t _mem_size(const UFQuadTree *qt)
+static u_int64_t _mem_size(const UFQuadTree *qt)
 {
     return
         sizeof(QuadTree) +
@@ -373,7 +372,7 @@ u_int64_t _mem_size(const UFQuadTree *qt)
 }
 
 /* Copy parts of an unfinalised quadtree to a soon-to-be finalised one */
-void _init_quadtree(QuadTree *new, const UFQuadTree *from)
+static void _init_quadtree(QuadTree *new, const UFQuadTree *from)
 {
     QuadTree tmp = {
         .region   = from->region,
@@ -436,7 +435,7 @@ const QuadTree *qt_finalise(const UFQuadTree *qt_, const char *file)
 }
 
 /* Finalise a node (inner or leaf) */
-inline void _qt_finalise(FinaliseState *st)
+static inline void _qt_finalise(FinaliseState *st)
 {
     assert(st->cur_trans != NULL);
 
@@ -462,7 +461,7 @@ inline void _qt_finalise(FinaliseState *st)
  *   * updates st->cur_node to child node
  *   * updates (st->quadtree->mem.as_inner+X)->quadrants[Y]
  */
-void _qt_finalise_inner(FinaliseState *st)
+static void _qt_finalise_inner(FinaliseState *st)
 {
     int i;
     TransNode *const cur = st->cur_trans;
@@ -482,7 +481,7 @@ void _qt_finalise_inner(FinaliseState *st)
             inner->quadrants[i] = ROOT;
         }
         else {
-            /* 
+            /*
              * Note: ((Inner *)MEM_INNERS(qt))[st->ninners] is the _next_
              * node to be finalised (i.e., _not_ this one.)
              */
@@ -504,7 +503,7 @@ void _qt_finalise_inner(FinaliseState *st)
 #endif
 }
 
-void _qt_finalise_leaf(FinaliseState *st)
+static void _qt_finalise_leaf(FinaliseState *st)
 {
     assert(IS_LEAF(st->quadtree, st->cur_node.as_void));
 
@@ -568,7 +567,7 @@ ENTER:
         return NULL;
     }
 
-    /* 
+    /*
      * Cunning use of '*' instead of '&&' to avoid a pipeline stall.
      * Note that no shortcutting is done, so the second operand to '*'
      * is always evaluated, regardless of the outcome of the first,
@@ -580,7 +579,7 @@ ENTER:
         >= itr->cur_item)
     {
         Item *itm = &itr->lp->items[itr->cur_item++];
-        if (in_quadrant(itm, &itr->region))
+        if (_in_quadrant(itm, &itr->region))
             return itm;
     }
 
@@ -592,7 +591,7 @@ ENTER:
 }
 
 
-void _itr_next_recursive(Qt_Iterator *itr)
+static void _itr_next_recursive(Qt_Iterator *itr)
 {
 RECURSE:
     assert(itr->so >= 0);
@@ -670,7 +669,7 @@ RECURSE:
                 /* Recurse.
                  *
                  * post-conditions:
-                 *   * itr->stack[itr->so].quadrant 
+                 *   * itr->stack[itr->so].quadrant
                  *      has _not_ been traversed yet.
                  *   * itr->stack[itr->so -1].quadrant
                  *      has _not_ been traversed yet.
@@ -711,7 +710,7 @@ NEXTQUADRANT:
 
 
 /* Figure out all the quadrants together, for speed */
-inline void _gen_quadrants(const Quadrant *region, Quadrant *mem)
+static inline void _gen_quadrants(const Quadrant *region, Quadrant *mem)
 {
     ASSERT_REGION_SANE(region);
 
@@ -791,7 +790,7 @@ Item **qt_query_ary_fast(const QuadTree *quadtree, const Quadrant *region,
     u_int64_t i=0;
     while (itr->lp != NULL) {
         /* At most maxn items */
-        if ((*maxn != 0) && (i >= *maxn)) 
+        if ((*maxn != 0) && (i >= *maxn))
             break;
 
         _include_leaf(&items, &i, &alloced, itr->lp, &itr->region,
@@ -815,7 +814,7 @@ Item **qt_query_ary_fast(const QuadTree *quadtree, const Quadrant *region,
  * Note: offset is the position at which we can start storing items
  * (i.e., *items+offset must not already contain an item).
  */
-inline void _include_leaf(Item ***items, u_int64_t *offset, u_int64_t *size,
+static inline void _include_leaf(Item ***items, u_int64_t *offset, u_int64_t *size,
     Leaf *leaf, Quadrant *quadrant, bool within)
 {
     assert(leaf != NULL);
@@ -841,7 +840,7 @@ inline void _include_leaf(Item ***items, u_int64_t *offset, u_int64_t *size,
         withins++;
 #endif
 
-        /* 
+        /*
          * It would be so cool to bypass the L2 cache right now, writing direct
          * to memory
          */
@@ -856,7 +855,7 @@ inline void _include_leaf(Item ***items, u_int64_t *offset, u_int64_t *size,
 
         u_int64_t j;
         for (i=0, j=0; j<leaf->n; j++) {
-            if (in_quadrant(addr+j, quadrant)) {
+            if (_in_quadrant(addr+j, quadrant)) {
                 itemsv[offsetv + i++] = addr+j;
             }
         }
@@ -867,9 +866,9 @@ inline void _include_leaf(Item ***items, u_int64_t *offset, u_int64_t *size,
 
 
 /* Read a file into memory  */
-void _read_mem(void *mem, int fd, u_int64_t bytes)
+static void _read_mem(void *mem, int fd, u_int64_t bytes)
 {
-    /* 
+    /*
      * This is the page size of the virtual memory pages, not the
      * filesystem or IO device pages. It also happens that I don't
      * care --- I just needed a reasonable block size to read.
@@ -899,7 +898,7 @@ void _read_mem(void *mem, int fd, u_int64_t bytes)
             exit(1);
         }
         else if (got != pagesize) {
-            fprintf(stderr, "unexpected retval from read: %ld:%d (_read_mem)", 
+            fprintf(stderr, "unexpected retval from read: %ld:%d (_read_mem)",
                 (signed long)got, pagesize);
             exit(1);
         }
@@ -918,7 +917,7 @@ void _read_mem(void *mem, int fd, u_int64_t bytes)
         exit(1);
     }
     else if (got != (ssize_t)rest) {
-        fprintf(stderr, 
+        fprintf(stderr,
             "unexpected return value from read: %lu:%" PRIu64 " (_read_mem)",
             (unsigned long)got, rest);
         exit(1);

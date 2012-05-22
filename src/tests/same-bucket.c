@@ -17,7 +17,7 @@ int main(void) {
     /* Create unfinalised quadtree with bucket size 200 */
     UFQuadTree *ufqt = qt_create_quadtree(&quadrant, 200);
 
-    /* Populate with all items in the same location */ 
+    /* Populate with all items in the same location */
     int i;
     for (i=0; i<number_of_items; i++) {
         Item item;
