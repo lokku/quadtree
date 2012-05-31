@@ -39,6 +39,7 @@
 #include "quadtree.h"
 #include "quadtree_private.h"
 #include "quadtree_portable.h"
+#include "wrappers.h"
 
 /* For debugging */
 unsigned long int withins  = 0;
