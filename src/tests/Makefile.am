@@ -27,12 +27,12 @@ AM_CFLAGS = -Wall -W -I$(top_srcdir)/src/
 ## Test Programs
 ##
 
-check_PROGRAMS = checkqt benchmark same-bucket stress-test
+check_PROGRAMS = checkqt benchmark same-bucket stress-test on-boundary
 test_headers  = ../quadtree.h ../quadtree_portable.h ../quadtree_private.h
 
 
 ## Tests to run by default in 'make check'
-TESTS = checkqt same-bucket
+TESTS = checkqt same-bucket on-boundary
 
 # Checkqt (name can't clash with target 'check')
 checkqt_SOURCES = check.c $(test_headers)
@@ -41,6 +41,9 @@ checkqt_LDADD = ../libquadtree.la
 # Lots of items in the same bucket
 same_bucket_SOURCES = same-bucket.c $(test_headers)
 same_bucket_LDADD = ../libquadtree.la
+
+on_boundary_SOURCES = on-boundary.c $(test_headers)
+on_boundary_LDADD = ../libquadtree.la
 
 
 ## Tests not run by default (with reasons)
